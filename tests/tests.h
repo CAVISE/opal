@@ -6,7 +6,7 @@
 
 
 #ifndef TESTS_H
-#define TEST_H
+#define TESTS_H
 #include "../Opal.h"
 #include <iostream>
 using namespace opal;
@@ -25,6 +25,7 @@ namespace opal {
 			void addCompoundDynamicMeshes(); 
 			void quadTest( bool print, bool subSteps) ;
 			void loadScenario(); 
+			std::vector<int> parseTestString(std::string test);
 
 	};
 

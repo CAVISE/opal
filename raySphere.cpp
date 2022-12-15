@@ -16,7 +16,7 @@ namespace opal {
 		//unsigned long long seed2=2357ULL;
 		unsigned long long seed1=74211ULL;
 		unsigned long long seed2=43535ULL;
-		std::cout<<"Setting seeds to "<<seed1<<","<<seed2<<std::endl;
+		LOG_S(INFO)<<"Setting seeds to "<<seed1<<","<<seed2<<std::endl;
 
 		opalthrustutils::initializeGenerators(&gen,seed1,&gen2,seed2);
 		//opalthrustutils::initializeGenerators(&gen,5631ULL,&gen2,1379ULL);
@@ -34,7 +34,7 @@ namespace opal {
 	}
 
 	std::vector<optix::float3> OpalRaySphereGenerator::generateTesselatedSphere(unsigned int depth) {
-		std::cout<<"Generating tesselated rays"<< std::endl;
+		LOG_S(INFO)<<"Generating tesselated rays"<< std::endl;
 		Timer timer;
 		timer.start();
 		std::vector<optix::float3> v;
@@ -55,7 +55,7 @@ namespace opal {
 			subdivide(vdata[tindices[i][0]], vdata[tindices[i][1]], vdata[tindices[i][2]], v, depth);
 		}
 		timer.stop();
-		std::cout<<"Generation time="<<timer.getTime()<<std::endl;
+		LOG_S(INFO)<<"Generation time="<<timer.getTime()<<std::endl;
 		return v;
 	}
 
@@ -88,7 +88,7 @@ namespace opal {
 
 		Timer timer;
 		std::vector<float3> v;
-		std::cout<<"Generating "<<r<<" random rays"<< std::endl;
+		LOG_S(INFO)<<"Generating "<<r<<" random rays"<< std::endl;
 		timer.start();
 		std::random_device rd;  
 		std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
@@ -121,7 +121,7 @@ namespace opal {
 			++p;
 		}
 		timer.stop();
-		std::cout<<"Time="<<timer.getTime()<<std::endl;
+		LOG_S(INFO)<<"Time="<<timer.getTime()<<std::endl;
 		return v;
 	}
 	void OpalRaySphereGenerator::generateRandomUniformSphereOnDevice(long r) {
@@ -133,12 +133,12 @@ namespace opal {
 
 		Timer timer;
 
-		std::cout<<"Generating "<<r<<" random rays on sphere on GPU"<< std::endl;
+		LOG_S(INFO)<<"Generating "<<r<<" random rays on sphere on GPU"<< std::endl;
 		timer.start();
 		raysDev = new opalthrustutils::DVector<optix::float3>();
 		opalthrustutils::generateRandomUniformRaysOnSphere(r,raysDev,gen,gen2);
 		timer.stop();
-		std::cout<<"Time="<<timer.getTime()<<"generated r="<<raysDev->getDeviceVectorSize()<<std::endl;
+		LOG_S(INFO)<<"Time="<<timer.getTime()<<"generated r="<<raysDev->getDeviceVectorSize()<<std::endl;
 	}
 	void OpalRaySphereGenerator::generateRandomUniformOnDevice(float eli,float elf,float azi, float aze, long r) {
 
@@ -210,7 +210,7 @@ namespace opal {
 		//	std::cout << "Loaded " << vertices.size() << " rays from " << file << std::endl;
 		infile.close();
 		if (vertices.size()==0) {
-			std::cout<<"WARNING: loaded zero rays!!!"<<std::endl;
+			LOG_S(WARNING)<<"WARNING: loaded zero rays!!!"<<std::endl;
 		}
 		return vertices;
 	}	

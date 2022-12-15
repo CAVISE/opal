@@ -91,7 +91,7 @@ Make sure that you do that for both Debug and Release configurations, or any oth
 As a standalone application, you can find an `main` method in `tests.cpp` with some tests. You can do your own, include it in your application, and 
 so on. Recompile and execute. 
 
-As a library, link appropriately and go. 
+As a library link appropriately and go. 
 
 As a Unity plugin, in the Plugins folder of your Unity project create an `Opal` subdirectory and drop the generated .dll in the Plugins folder and create an `Opal` subdirectory. If the target platform is Linux, do the same but with the .so. In this case, the .so is in 
 the `SDK/lib` folder. In that folder you can also find a `ptx` folder, that you have to copy in the `Opal` plugin folder too. 
@@ -104,26 +104,9 @@ They can be changed without recompiling all the code.
 With Unity, even recompiling, any  change made in the .cu files is ignored unless copied to the plugin location.
 When building an executable with Unity, you have either to use a specific script to create the cudaDir and copy the .cu and .h files to it, or just create and copy manually after the build is done. In the end, along with the Unity executable and files you need to have this specific folder and files 
 
+### Usage remarks
 * Take a look at the `main.cpp` and the files in the `tests` folder for examples of use. **That is the first thing you should do. There are alternative ways to set up a simulation and 
 different simulation types**.
-
-* Start by uncommenting one of the samples in `main.cpp` and try other ones by commenting and uncommenting the ones you are interested in.
-
-To run a sample, run the executable passing some parameters as
-```bash
-./opal -r 10 -u 0.1 -c -d
-```
-The above command run the executable in `main.cpp` with 10 reflections a sphere radius of 0.1 m, using depolarization, with approximate speed of ligth and without "fast math".
-
-A brief description of the archictecture and available options is provided in our [paper](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0260060). 
-
-### Results
-Results are displayed in the console. Lines include codes such as "TER" to facilitate `grep`. They can also be saved to a CSV file (check the code samples in `tests`). There are two main different computation modes: 
-`ComputeMode::VOLTAGE`, gives the induced voltage in the receiver antenna, that is, it takes into account any polarization of the receiver. With `ComputeMode::FIELD`, you get the projection on the axis of the electric field at 
-the receiver point. That is, no receiver antenna is considered. This mode is useful to compute the electric field at any point in the space, independently of whether there is actually a receiver at that point. Depending on the 
-computation mode, the format of the results is different.
-
-### Usage remarks
 * Sometimes the simulation enters in an infinite tracing loop due to precision errors in the intersections. Changing the value of the minEpsilon parameter usually solve this issue. We have added a 
 preprocessor tag in `Common.h` to use a technique for avoiding self-intersections. But this is going to introduce some small precision errors in the computed electric field, since the ray lengths are modified due to a displacement.
 If you do not need very high accuracy (which is the usual case) you can  uncomment it. Otherwise keep it, but then you have to tune minEpsilon, which is not scale-invariant. If your simulation gets stuck in a launch, try uncommenting it.  If it is no longer stuck but you need high precision, comment it again an tune minEpsilon until it is removed.

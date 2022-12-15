@@ -140,7 +140,7 @@ namespace opalthrustutils {
 		for (uint i=0; i<enabledDevices; ++i) {
 			uint c_buf_size=bp.getAtomicIndex(i);
 			//uint c_buf_size=ai_size[i];
-			std::cout<<"aux="<<aux<<"c_buf_size="<<c_buf_size<<std::endl;
+			LOG_S(INFO)<<"Device buffer="<<aux<<"atomic index size="<<c_buf_size<<std::endl;
 			//cudaMemcpy(thrust::raw_pointer_cast(vt.data())+aux, raw_ptrs[i],(c_buf_size)*sizeof(HitInfo),cudaMemcpyDeviceToDevice);
 			cudaMemcpy(thrust::raw_pointer_cast(vt.data())+aux, bp.getRawPointerToHitBuffer(i),(c_buf_size)*sizeof(HitInfo),cudaMemcpyDeviceToDevice);
 			aux += c_buf_size;
@@ -167,42 +167,39 @@ namespace opalthrustutils {
 
 
 	}
-	thrust::host_vector<RDNHit> getReceivedFieldMultiGPU( optix::Buffer hitBuffer,const std::vector<int> &devices,  uint nrx) {
-		thrust::host_vector<RDNHit> h(nrx);
-	//	for (uint i=0; i<nrx; ++i) {
-	//		std::cout<<"h="<<h[i]<<std::endl;
-	//	}
+	thrust::host_vector<RDNHit> getReceivedFieldMultiGPU( optix::Buffer hitBuffer,const std::vector<int> &devices,  uint nrx, uint ntx) {
+		thrust::host_vector<RDNHit> h(nrx*ntx);
 		uint enabledDevices=devices.size();
 		for (uint i=0; i<enabledDevices; ++i) {
 			cudaSetDevice(devices[i]);
 			RDNHit* pr=static_cast<RDNHit*>(hitBuffer->getDevicePointer(devices[i]));
 			thrust::device_ptr<RDNHit> p=thrust::device_pointer_cast(pr);
-			for (uint j=0; j<nrx; ++j) {
-				RDNHit myHit=p[j];
-				h[j].EEx +=myHit.EEx;
-				h[j].EyEz +=myHit.EyEz;
-				RDNHit empty={make_float4(0.0f,0.0f,0.0f,0.0f),make_float4(0.0f,0.0f,0.0f,0.0f)}; 	
-				p[j]=empty;
-				
-	//	#ifdef OPAL_EXTENDED_HITINFO
-	//			RDNHit myHit=p[j];
-	//			h[j].Ex +=myHit.Ex;
-	//			h[j].Ey +=myHit.Ey;
-	//			h[j].Ez +=myHit.Ez;
-	//			RDNHit empty={make_float2(0.0f,0.0f),make_float2(0.0f,0.0f),make_float2(0.0f,0.0f)}; 	
-	//			p[j]=empty;
+			for (uint x=0; x<nrx; ++x) {
+				for (uint y=0; y<ntx; ++y) {
+					uint index=y*nrx +x;
+					RDNHit myHit=p[index];
+					h[index].EEx +=myHit.EEx;
+					h[index].EyEz +=myHit.EyEz;
+					//Clear values
+					RDNHit empty={make_float4(0.0f,0.0f,0.0f,0.0f),make_float4(0.0f,0.0f,0.0f,0.0f)}; 	
+					p[index]=empty;
+				}
 
-	//	#else
-	//			h[j] +=p[j];
-	//			//Init
-	//			p[j]=make_float2(0.0f,0.0f);
-	//	#endif
-				
- 			}
+
+
+			}
+			//for (uint j=0; j<nrx; ++j) {
+			//	
+			//	RDNHit myHit=p[j];
+			//	h[j].EEx +=myHit.EEx;
+			//	h[j].EyEz +=myHit.EyEz;
+			//	//Clear values
+			//	RDNHit empty={make_float4(0.0f,0.0f,0.0f,0.0f),make_float4(0.0f,0.0f,0.0f,0.0f)}; 	
+			//	p[j]=empty;
+			//	
+			//	
+ 			//}
 		}
-		//for (uint i=0; i<nrx; ++i) {
-		//	std::cout<<"ho="<<h[i]<<std::endl;
-		//}
 		return h;
 		
 	}
@@ -214,7 +211,7 @@ namespace opalthrustutils {
 		bp.fillMembers(hitBuffer,aIndex,devices,maxGlobalBufferSize); 
 		long totalMemory=bp.getTotalHitsSize()*sizeof(HitInfo);
 		float GiB=1048576.0f*1024.0f;
-		std::cout<<"Total memory="<<(totalMemory/GiB)<<std::endl;
+		LOG_S(INFO)<<"Total memory="<<(totalMemory/GiB)<<std::endl;
                	GetRealE unary_op_r;
                	GetImE unary_op_i;
 		thrust::plus<float> binary_op;
@@ -441,7 +438,7 @@ namespace opalthrustutils {
 			//Should we resize the vt vector to free memory...?
 			return (new_end-vt->begin());
 		} else {
-			std::cout<<"Large Memory: previousSize="<<previousSize<<"memory="<<(previousSize*sizeof(HitInfo)/(1024.f*1024.f))<<" MiB; totalHitsSize="<<totalHitsSize<<"total memory for hits="<<(sizeof(HitInfo)*totalHitsSize/(1024.f*1024.f))<<" MiB"<<std::endl;
+			LOG_S(INFO)<<"Large Memory: previousSize="<<previousSize<<"memory="<<(previousSize*sizeof(HitInfo)/(1024.f*1024.f))<<" MiB; totalHitsSize="<<totalHitsSize<<"total memory for hits="<<(sizeof(HitInfo)*totalHitsSize/(1024.f*1024.f))<<" MiB"<<std::endl;
 
 			//Large number of hits, process in chunks
 			//Create chunks per device

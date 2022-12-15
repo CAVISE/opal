@@ -212,11 +212,11 @@ namespace opal {
 	}
 	void SingleDiffraction::executeTransmitLaunch(uint numTransmitters, bool partial) {
 		if (partial) {
-                        //TODO:Partial launches are not well defined so far for diffraction. We just compute all the edges in one launch, do not discriminate by zones
-                        //this is something that can be done in the future. At the moment we just do not do nothing and delay until the end of partial launch
-                        std::cout<<"Partial launch for diffraction. Delaying computation until end of partial launch"<<std::endl;
-                        return;
-                }
+			//TODO:Partial launches are not well defined so far for diffraction. We just compute all the edges in one launch, do not discriminate by zones
+			//this is something that can be done in the future. At the moment we just do not do nothing and delay until the end of partial launch
+			std::cout<<"Partial launch for diffraction. Delaying computation until end of partial launch"<<std::endl;
+			return;
+		}
 		uint ne=myManager->getNumberOfEdges();
 		uint nrx=myManager->getNumberOfReceivers();
 		if (ne==0) {
@@ -259,6 +259,7 @@ namespace opal {
 					if (mode==ComputeMode::VOLTAGE) {
 						float2 E=make_float2(h[i].EEx.x,h[i].EEx.y);
 						//std::cout<<"processDiffractionLaunch() E("<<x<<","<<receivers[y]->externalId<<","<<activeTransmitters[z]->externalId<<")="<<E<<std::endl;
+					        	
 						if (h[i].EEx.z==1.0f) {
 							//std::cout<<"["<<x<<","<<y<<","<<z<<"]"<<std::endl;
 							//computeReceivedPower(E,y,z, 1u); 
@@ -266,23 +267,33 @@ namespace opal {
 							if (printHits) {
 								float4 doad=h[i].doaD;
 								float4 dod=h[i].doDu;
+							//DOA
 								std::cout<<std::setprecision(15)<<"DIFD\t"<<E.x<<"\t"<<E.y<<"\t"<<doad.x<<"\t"<<doad.y<<"\t"<<doad.z<<"\t"<<doad.w<<"\t"<<receivers[y]->externalId<<"\t"<< activeTransmitters[z]->externalId<<"\t"<<dod.x<<"\t"<<dod.y<<"\t"<<dod.z<<std::endl;
+							
+								//std::cout<<std::setprecision(15)<<"DIFD\t"<<E.x<<"\t"<<E.y<<"\t"<<receivers[y]->externalId<<"\t"<< activeTransmitters[z]->externalId<<"\t"<<doad.w<<"\t"<<dod.w<<"\t"<<doad.x<<"\t"<<doad.y<<"\t"<<doad.z<<std::endl;
+								//std::cout<<std::setprecision(15)<<"DIFD\t"<<E.x<<"\t"<<E.y<<"\t"<<receivers[y]->externalId<<"\t"<< x<<"\t"<<doad.w<<"\t"<<dod.w<<"\t"<<doad.x<<"\t"<<doad.y<<"\t"<<doad.z<<std::endl;
+								//std::cout<<std::setprecision(15)<<"DIFD\t"<<E.x<<"\t"<<E.y<<"\t"<< x<<"\t"<<y<<"\t"<<z<<std::endl;
 							}
 						}
 						if (info) {
-							info->updateField(E,receivers[y]->externalId,activeTransmitters[z]->externalId,y,1u); 			
+							info->updateField(E,receivers[y]->externalId,activeTransmitters[z]->externalId,y,(uint)h[i].EEx.z); 			
 						}
 					} else {
 						float2 Ex=make_float2(h[i].EEx.z,h[i].EEx.w);
 						float2 Ey=make_float2(h[i].EyEz.x,h[i].EyEz.y);
 						float2 Ez=make_float2(h[i].EyEz.z,h[i].EyEz.w);
 						if (h[i].EEx.x==1.0f) {
+							if (printHits) {
+								float4 doad=h[i].doaD;
+								float4 dod=h[i].doDu;
+								std::cout<<std::setprecision(15)<<"DIFD\t"<<Ex.x<<"\t"<<Ex.y<<"\t"<<Ey.x<<"\t"<<Ey.y<<"\t"<<Ez.x<<"\t"<<Ez.y<<"\t"<<doad.x<<"\t"<<doad.y<<"\t"<<doad.z<<"\t"<<doad.w<<"\t"<<receivers[y]->externalId<<"\t"<< activeTransmitters[z]->externalId<<"\t"<<dod.x<<"\t"<<dod.y<<"\t"<<dod.z<<std::endl;
+							}
 							//std::cout<<"["<<x<<","<<y<<","<<z<<"]"<<std::endl;
 							//computeReceivedPower(Ex,Ey,Ez,y, z, 1u); 
 							++realHits;
 						}
 						if (info) {	
-							info->updateField(Ex,Ey,Ez,receivers[y]->externalId,activeTransmitters[z]->externalId,y,1u); 			
+							info->updateField(Ex,Ey,Ez,receivers[y]->externalId,activeTransmitters[z]->externalId,y,(uint) h[i].EEx.x); 			
 						}
 					}
 				}
@@ -292,11 +303,13 @@ namespace opal {
 		std::cout<<"Diffraction hits="<<realHits<<std::endl;
 	}
 	void SingleDiffraction::processTraceLog(unsigned int maxTraceSize) {
-		std::cout<<"Processing Diffraction Trace Log with "<<maxTraceSize<<std::endl;
+		std::cout<<"Processing Diffraction Trace Log with maxTraceSize="<<maxTraceSize<<std::endl;
 		std::vector<int> enabledDevices= myManager->getEnabledDevices();
 		thrust::host_vector<LogTraceHitInfo> trace=opalthrustutils::getLogTraceOrderer(traceBuffer,traceAtomicIndexBuffer,enabledDevices, maxTraceSize);
 		if (trace.size()>0) {
 			saveTraceToFile(trace,"dif-trace.txt");
+		} else {
+			std::cout<<"No trace for diffraction generated="<<maxTraceSize<<std::endl;
 		}	
 	}
 	void SingleDiffraction::saveTraceToFile(thrust::host_vector<LogTraceHitInfo> trace, std::string fileName) {
@@ -327,11 +340,13 @@ namespace opal {
 	void SingleDiffraction::registerReceiverGain(int rxId, int gainId) {
 		updateReceiverBuffer=true;
 	}
+        void SingleDiffraction::clearReceivers() {
+		updateReceiverBuffer=true;
+	}
 	void SingleDiffraction::endPartialLaunch(uint numTransmitters) {
-		 //Compute now delayed diffraction launc
-                std::cout<<"Called endPartialLaunch for diffraction. Executing diffraction launch now"<<std::endl;
-                executeTransmitLaunch(numTransmitters, false);
-
+		//Compute now delayed diffraction launc
+		std::cout<<"Called endPartialLaunch for diffraction. Executing diffraction launch now"<<std::endl;
+		executeTransmitLaunch(numTransmitters, false);
 	}
 	//void SingleDiffraction::setDefaultPrograms() {
 	////void SingleDiffraction::setDefaultPrograms(std::map<std::string,optix::Program>& defaultPrograms, optix::Material& defaultMeshMaterial) {
@@ -360,19 +375,19 @@ namespace opal {
 	//	defaultMeshMaterial->setClosestHitProgram(diffractionEntryIndex, defaultPrograms.at("meshClosestHitDiffraction")); //Add a program for visibility rays for diffraction
 	//}
 	void SingleDiffraction::createClosestHitPrograms() {
-		std::cout<<"SingleDiffraction::createClosestHitPrograms()"<<std::endl;
+		//std::cout<<"SingleDiffraction::createClosestHitPrograms()"<<std::endl;
 		std::map<std::string, optix::Program>& defaultPrograms=myManager->getDefaultPrograms();
 		defaultPrograms.insert(std::pair<std::string, optix::Program>("computeSimpleDiffraction",createComputeSimpleDiffractionProgram()));
-		std::cout<<"SingleDiffraction::createClosestHitPrograms() meshClosestHitDiffraction"<<std::endl;
+		//std::cout<<"SingleDiffraction::createClosestHitPrograms() meshClosestHitDiffraction"<<std::endl;
 		defaultPrograms.insert(std::pair<std::string, optix::Program>("meshClosestHitDiffraction", createClosestHitMeshDiffractionProgram()));
-		std::cout<<"SingleDiffraction::createClosestHitPrograms() meshClosestHitCurvedDiffraction"<<std::endl;
+		//std::cout<<"SingleDiffraction::createClosestHitPrograms() meshClosestHitCurvedDiffraction"<<std::endl;
 		defaultPrograms.insert(std::pair<std::string, optix::Program>("meshClosestHitCurvedDiffraction", createClosestHitCurvedMeshDiffractionProgram())); //Only to be able to hit on curved meshes
 		defaultPrograms.insert(std::pair<std::string, optix::Program>("missDiffraction", createMissDiffractionProgram()));
 		defaultPrograms.insert(std::pair<std::string, optix::Program>("exceptionDiffraction", createExceptionDiffractionProgram()));
 	}
 	void SingleDiffraction::addStaticMesh(OpalMesh& mesh, std::vector<optix::Material>& materials) {
 		std::map<std::string, optix::Program>& defaultPrograms=myManager->getDefaultPrograms();
-		std::cout<<"SingleDiffraction::addStaticMesh(): Setting closest hit for mesh with diffractionRayIndex="<<diffractionRayIndex<<std::endl;
+		//std::cout<<"SingleDiffraction::addStaticMesh(): Setting closest hit for mesh with diffractionRayIndex="<<diffractionRayIndex<<std::endl;
 		materials[0]->setClosestHitProgram(diffractionRayIndex,defaultPrograms.at("meshClosestHitDiffraction")); //Visibility rays for diffraction
 	}
 	void SingleDiffraction::addStaticCurvedMesh(OpalMesh& mesh, std::vector<optix::Material>& materials) {

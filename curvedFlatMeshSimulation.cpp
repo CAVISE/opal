@@ -46,12 +46,12 @@ namespace opal {
 				uint hits=opalthrustutils::filterHitsMultiGPU(globalHitInfoBuffer,  atomicIndexBuffer, enabledDevices, partialLaunchState,maxGlobalBufferSize);
 				partialLaunchState->setIndex(hits);
 				uint vhits=partialLaunchState->getDeviceHitsBufferSize();
-				std::cout<<"hits="<<hits<<"vector size="<<vhits<<std::endl;
+				LOG_S(INFO)<<"hits="<<hits<<"vector size="<<vhits<<std::endl;
 				//Log times for performance tests
 				timer.stop();
 				uint numReceivers = myManager->getNumberOfReceivers();
 				const double filterTime=timer.getTime();
-				std::cout<<"#"<<numReceivers<<"\t"<<hits<<"\t"<<launchTime<<"\t"<<filterTime<<std::endl;
+			 	LOG_S(INFO)<<"#receivers:"<<numReceivers<<"\thits:"<<hits<<"\tlaunchTime:"<<launchTime<<"\tfilterTime:"<<filterTime<<std::endl;
 			}
 
 		} else {
@@ -79,7 +79,7 @@ namespace opal {
 				const double filterTime=timer.getTime();
 				uint numReceivers = myManager->getNumberOfReceivers();
 				uint hits=host_hits.size();
-				std::cout<<"#"<<numReceivers<<"\t"<<host_hits.size()<<"\t"<<launchTime<<"\t"<<filterTime<<std::endl;
+				LOG_S(INFO)<<"#"<<numReceivers<<"\t"<<host_hits.size()<<"\t"<<launchTime<<"\t"<<filterTime<<std::endl;
 				processLaunch(host_hits.data(), hits,numTransmitters);
 
 			}

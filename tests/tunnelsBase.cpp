@@ -149,6 +149,15 @@ std::vector<int> TunnelsBase::parseTestString(std::string test) {
     } 
 	return tokens;
 }
+void TunnelsBase::loadTransformedSquareTunnel(MaterialEMProperties emProp1, Matrix4x4 tm) {
+	//Tunnel is a cube with the XY faces removed (entrance and exit). So tunnel runs on Z axis (front, in Unity)
+	std::vector<int> cubeind = sceneManager->loadTrianglesFromFile("meshes/tunnel-i.txt");
+	std::vector<float3> cubevert = sceneManager->loadVerticesFromFile("meshes/tunnel-v.txt");
+	std::cout << "Adding Transformed Square tunnel tm="<<tm<<" Em="<< emProp1.dielectricConstant << std::endl;
+	//sceneManager->writeMeshToCustomFile("anvflat",cubevert,cubeind,tm);
+	sceneManager->addStaticMesh(static_cast<int>(cubevert.size()), cubevert.data(), static_cast<int>(cubeind.size()), cubeind.data(), tm, emProp1);
+
+}
 void TunnelsBase::loadSquareTunnel( float width, float height, float length, MaterialEMProperties emProp1) {
 	//Tunnel is a cube with the XY faces removed (entrance and exit). So tunnel runs on Z axis (front, in Unity)
 	std::cout << "Loading square tunnel with width=" <<width<<",  height="<<height<< " and length="<<length<<" from meshes/tunnel-i/v.txt"<< std::endl;
@@ -164,3 +173,72 @@ void TunnelsBase::loadSquareTunnel( float width, float height, float length, Mat
 	sceneManager->addStaticMesh(static_cast<int>(cubevert.size()), cubevert.data(), static_cast<int>(cubeind.size()), cubeind.data(), tm, emProp1);
 
 }
+float TunnelsBase::runSectorizedLaunch(SphereScanConfiguration conf, int txId, float txPower, float3 txpos, float3 polarizationTx, OpalSimulation* sim ) {
+	float currentElevation=conf.initElevation;
+	float currentAzimuth=conf.initAzimuth;
+	float overlap=conf.overlap;
+	float deltaAz=conf.deltaAz;
+	float deltaEl=conf.deltaEl;
+	float asEl=conf.asEl;
+	float asAz=conf.asAz;
+	float endElevation = conf.endElevation;
+	float endAzimuth = conf.endAzimuth;
+	float rayGoal=conf.rayGoal;
+	int filtering = conf.filtering;
+	std::cout<<"Tracing angle (el/az)="<<(currentElevation-conf.overlap)<<","<<(currentElevation+conf.deltaEl+conf.overlap)<<"/"<<(currentAzimuth-conf.overlap)<<","<<(currentAzimuth+conf.deltaAz+conf.overlap)<<std::endl;
+	Timer timer;	
+	int launches=0;
+	//Ray gen on launch
+        float deg2rad=M_PIf/180.0f;
+	float solidAngle=deg2rad*deltaAz*(cosf(deg2rad*currentElevation)-cosf(deg2rad*(currentElevation+deltaEl)));
+	int rayD=floor(sqrt(rayGoal*solidAngle)); 
+
+
+	if (sim->getSimulationType()==OpalSimulationTypes::RDN) {
+		std::cout<<"\t RDN: scanning the sphere with ASElevation="<<asEl<< " and ASAzimuth="<<asAz<<"rays="<<rayD*rayD<<std::endl;
+		sceneManager->setRayRange(currentElevation,currentElevation+deltaEl,currentAzimuth,currentAzimuth+deltaAz,rayD,rayD);
+		RayDensityNormalizationSimulation* rdnsim=dynamic_cast<RayDensityNormalizationSimulation*>(sim);
+		rdnsim->setInitialDensity(sceneManager->getRaySphere().rayCount,currentAzimuth,currentAzimuth+deltaAz,currentElevation, currentElevation+deltaEl);
+		rdnsim->setFiltering(filtering);
+		rdnsim->setRayCount(sceneManager->getRaySphere().rayCount);	
+	} else {
+		sceneManager->createRaySphere2D(currentElevation-overlap,asEl,currentElevation+deltaEl+overlap,currentAzimuth-overlap,asAz,currentAzimuth+deltaAz+overlap);
+	}
+	timer.start();
+	//First launch
+	std::cout<<"Tracing angle (el/az)="<<(currentElevation-overlap)<<","<<(currentElevation+deltaEl+overlap)<<"/"<<(currentAzimuth-overlap)<<","<<(currentAzimuth+deltaAz+overlap)<<std::endl;
+	sceneManager->transmit(txId, txPower, txpos, polarizationTx, true);
+	launches++;
+	//Now loop to fill the solid angle
+	currentAzimuth += deltaAz;
+	//Trace all elevations
+	while (currentElevation<endElevation) {
+
+		//Trace all azimuth	
+		while(currentAzimuth<endAzimuth) {
+
+			if (sim->getSimulationType()==OpalSimulationTypes::RDN) {
+				solidAngle=deg2rad*deltaAz*(cosf(deg2rad*currentElevation)-cosf(deg2rad*(currentElevation+deltaEl)));
+				rayD=floor(sqrt(rayGoal*solidAngle)); 
+				sceneManager->setRayRange(currentElevation,currentElevation+deltaEl,currentAzimuth,currentAzimuth+deltaAz,rayD,rayD);
+			} else {
+				sceneManager->createRaySphere2D(currentElevation-overlap,asEl,currentElevation+deltaEl+overlap,currentAzimuth-overlap,asAz,currentAzimuth+deltaAz+overlap);
+			}
+			sceneManager->transmit(txId, txPower, txpos, polarizationTx, true);
+			currentAzimuth += deltaAz;
+			++launches;
+		}
+		currentAzimuth=conf.initAzimuth;
+		currentElevation += deltaEl;
+	}
+	sceneManager->endPartialLaunch(1u);
+
+	currentElevation=conf.initElevation;
+	currentAzimuth=conf.initAzimuth;
+	timer.stop();
+	std::cout<<"launches="<<launches<<"Time="<<timer.getTime()<<"Time/launch="<<(timer.getTime()/launches)<<std::endl;
+	return timer.getTime();
+
+} //Multiple zcuts for(n
+
+

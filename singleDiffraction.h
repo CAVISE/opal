@@ -56,6 +56,7 @@ namespace opal {
 			virtual void addStaticCurvedMesh(opal::OpalMesh& mesh, std::vector<optix::Material>& materials) override ;
 			virtual void registerReceiverGain(int rxId, int gainId) override; 
 			virtual void transformEdge(Edge* e, optix::Matrix4x4 t) override;	
+			virtual void clearReceivers();
 	};
 }
 #endif //SIMPLEDIFFRACTION_H

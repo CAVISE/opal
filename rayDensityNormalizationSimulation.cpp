@@ -98,6 +98,7 @@ namespace opal {
 		parametersBuffer = myManager->getContext()->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER, 1u);
 		parametersBuffer->setElementSize(sizeof(RDNParameters));
 		myManager->getContext()["rdnParametersBuffer"]->set(parametersBuffer);
+		setTraceLogBuffers();
 
 	}
 	void RayDensityNormalizationSimulation::setReceivedFieldBuffer() {
@@ -109,8 +110,9 @@ namespace opal {
 			receivedFieldBuffer=nullptr;
 		}
 		unsigned int nrx=myManager->getNumberOfReceivers();
-		std::cout<<"Setting receivedFieldBuffer for "<<nrx<<std::endl;
-		receivedFieldBuffer = myManager->getContext()->createBuffer(RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_USER, nrx);
+		unsigned int ntx=myManager->getNumberOfActiveTransmitters();
+		std::cout<<"Setting receivedFieldBuffer for ("<<nrx<<","<<ntx<<")"<<std::endl;
+		receivedFieldBuffer = myManager->getContext()->createBuffer(RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_USER, nrx,ntx);
 		receivedFieldBuffer->setElementSize(sizeof(RDNHit));
 		myManager->getContext()["eBuffer"]->set(receivedFieldBuffer);
 	}
@@ -243,9 +245,9 @@ namespace opal {
 				executeFixedRayLaunch(numTransmitters);
 				break;
 			case NOMEM:
-				if (numTransmitters != 1) {
-					throw  opal::Exception("RayDensityNormalizationSimulation::executeReceivedFieldLaunch(): NOMEM type not implemented for more than 1 transmitter yet");
-				}	
+				//if (numTransmitters != 1) {
+				//	throw  opal::Exception("RayDensityNormalizationSimulation::executeReceivedFieldLaunch(): NOMEM type not implemented for more than 1 transmitter yet");
+				//}	
 				executeReceivedFieldLaunch(numTransmitters);
 				break;
 			default:
@@ -264,6 +266,9 @@ namespace opal {
 			//			executeLogRayTrace(dirs.data(), dirs.size(),numTransmitters);
 			//#endif //OPAL_LOG_TRACE
 			//
+			if (generateTraceLog) {
+				executeLogRayTrace(dirs.data(), dirs.size(),numTransmitters);
+			}
 		}
 	}
 
@@ -293,11 +298,17 @@ namespace opal {
 	}
 	void RayDensityNormalizationSimulation::executeReceivedFieldLaunch(unsigned int numTransmitters) {
 		RaySphere raySphere= myManager->getRaySphere();
+		RTsize w;
+		RTsize h;
 		unsigned int nrx=myManager->getNumberOfReceivers();
-		if (nrx!=lastReceivedFieldBufferSize) {
+		//unsigned int ntx=myManager->getNumberOfActiveTransmitters();
+		receivedFieldBuffer->getSize(w,h);
+		if (nrx==w && numTransmitters==h) {
+			//Size is already correct
+		} else {
 			//Create a new buffer
 			setReceivedFieldBuffer();
-			lastReceivedFieldBufferSize=nrx;
+			//lastReceivedFieldBufferSize=nrx;
 		}
 		//initReceivedFieldBuffer();
 		std::cout<<"Transmitting RDN with NOMEM (receivedFieldBuffer) with el="<<raySphere.elevationSteps<<"az="<<raySphere.azimuthSteps<<std::endl;
@@ -315,7 +326,7 @@ namespace opal {
 			throw  opal::Exception("RayDensityNormalizationSimulation::executeFixedRayLaunch(): fixedRayBuffer dimensions do not match launch receivers and ray count. Call setFixedRayBuffer() first");
 
 		}			
-		std::cout<<"Transmitting RDN with NOATIMIC (fixedRaySize) with el="<<raySphere.elevationSteps<<"az="<<raySphere.azimuthSteps<<std::endl;
+		std::cout<<"Transmitting RDN with NOATOMIC (fixedRaySize) with el="<<raySphere.elevationSteps<<"az="<<raySphere.azimuthSteps<<std::endl;
 		myManager->getContext()->launch(reflectionEntryIndex, raySphere.elevationSteps, raySphere.azimuthSteps,numTransmitters); //Launch 3D (elevation, azimuth, transmitters);
 
 		processFixedRayBuffer();		
@@ -323,20 +334,24 @@ namespace opal {
 	void RayDensityNormalizationSimulation::processReceivedFieldBuffer() {
 		std::vector<int> enabledDevices= myManager->getEnabledDevices();
 		std::vector<SphereReceiver*>	receivers=myManager->getReceivers(); 
-		thrust::host_vector<RDNHit> h=opalthrustutils::getReceivedFieldMultiGPU(receivedFieldBuffer,enabledDevices,receivers.size());
 		std::vector<Transmitter*> activeTransmitters = myManager->getActiveTransmitters();
+		thrust::host_vector<RDNHit> h=opalthrustutils::getReceivedFieldMultiGPU(receivedFieldBuffer,enabledDevices,receivers.size(), activeTransmitters.size());
 		//With NOMEN we cannot know the number of real hits unless we store them in the buffer...
-		for (unsigned int i=0; i<h.size(); ++i) {
-			if (mode==ComputeMode::FIELD) {
-				float2	Ex = make_float2(h[i].EEx.z,h[i].EEx.w);
-				float2	Ey = make_float2(h[i].EyEz.x,h[i].EyEz.y);
-				float2	Ez = make_float2(h[i].EyEz.z,h[i].EyEz.w);
-				myManager->getFieldInfo()->updateField(Ex,Ey,Ez,receivers[i]->externalId,activeTransmitters[0]->externalId,i,1u); 			
-				//info->updateField(h[i].Ex,h[i].Ey,h[i].Ez,receivers[i]->externalId,activeTransmitters[0]->externalId,i,1u); 			
-			} else {
-				float2 E = make_float2(h[i].EEx.x,h[i].EEx.y);
-				myManager->getFieldInfo()->updateField(E,receivers[i]->externalId,activeTransmitters[0]->externalId,i,1u); 		
-				//std::cout<<"RDN NOMEM field E="<<E<<std::endl;	
+		for (unsigned int x=0; x<receivers.size(); ++x) {
+			for (unsigned int y=0; y<activeTransmitters.size(); ++y) {
+				//for (unsigned int i=0; i<h.size(); ++i) {
+				uint i=y*receivers.size() +x;
+				if (mode==ComputeMode::FIELD) {
+					float2	Ex = make_float2(h[i].EEx.z,h[i].EEx.w);
+					float2	Ey = make_float2(h[i].EyEz.x,h[i].EyEz.y);
+					float2	Ez = make_float2(h[i].EyEz.z,h[i].EyEz.w);
+					myManager->getFieldInfo()->updateField(Ex,Ey,Ez,receivers[x]->externalId,activeTransmitters[y]->externalId,x,1u); 			
+					//info->updateField(h[i].Ex,h[i].Ey,h[i].Ez,receivers[i]->externalId,activeTransmitters[0]->externalId,i,1u); 			
+				} else {
+					float2 E = make_float2(h[i].EEx.x,h[i].EEx.y);
+					myManager->getFieldInfo()->updateField(E,receivers[x]->externalId,activeTransmitters[y]->externalId,x,1u); 		
+					//std::cout<<"RDN NOMEM field E="<<E<<std::endl;	
+				}
 			}
 		}
 	}

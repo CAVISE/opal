@@ -28,6 +28,7 @@
 #include <vector>
 #include <curand.h>
 #include <curand_kernel.h>
+#include "loguru.hpp"
 
 //Visual studio does not know uint
 #ifdef _WIN32
@@ -130,7 +131,7 @@ namespace opalthrustutils {
 					raw_ptrs[i]=static_cast<T*>( hitBuffer->getDevicePointer(devices[i]));
 					dev_ptrs[i]=thrust::device_pointer_cast(raw_ptrs[i]);
 					if (s>0) {
-						std::cout<<i<<" BufferPointers::fillMembers(): s="<<s<<"; mem="<<(s*sizeof(T)/(1024*1024))<<" MiB"<<std::endl;
+						LOG_S(INFO)<<i<<" BufferPointers::fillMembers(): s="<<s<<"; mem="<<(s*sizeof(T)/(1024*1024))<<" MiB"<<std::endl;
 					}
 					if (s>maxGlobalBufferSize) {
 						throw opalthrustutils::Exception("BufferPointers::fillMembers(): globalHitBuffer overflow. Try changing fractionMemGlobalBufferSize or reducing the ray density or sphere radius ");
@@ -170,7 +171,7 @@ namespace opalthrustutils {
 						enoughMemory=true;
 						break;
 					} else {
-						std::cout<<"bp.checkMemory(): totalMemory="<<(totalMemory/GiB)<<" GBi, memoryInDevice["<<i<<"]="<<(memoryInDevice[i]/GiB)<<" GBi"<<std::endl;
+						LOG_S(INFO)<<"bp.checkMemory(): totalMemory="<<(totalMemory/GiB)<<" GBi, memoryInDevice["<<i<<"]="<<(memoryInDevice[i]/GiB)<<" GBi"<<std::endl;
 					}	
 				}
 				return enoughMemory;
@@ -210,7 +211,8 @@ namespace opalthrustutils {
 	void initializeGenerators(curandGenerator_t* gen, unsigned long long seed1, curandGenerator_t* gen2, unsigned long long seed2); 
 	uint getMixedHitsMultiGPU( optix::Buffer hitBuffer,  optix::Buffer aIndex, const std::vector<int> &devices, PartialLaunchState<HitInfo>* state, uint maxGlobalBufferSize);
 	
-	thrust::host_vector<RDNHit> getReceivedFieldMultiGPU( optix::Buffer hitBuffer,const std::vector<int> &devices,  uint nrx); 
+	//thrust::host_vector<RDNHit> getReceivedFieldMultiGPU( optix::Buffer hitBuffer,const std::vector<int> &devices,  uint nrx); 
+	thrust::host_vector<RDNHit> getReceivedFieldMultiGPU( optix::Buffer hitBuffer,const std::vector<int> &devices,  uint nrx, uint ntx); 
 
 
 	//Log traces	

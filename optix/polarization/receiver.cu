@@ -108,7 +108,7 @@ RT_PROGRAM void closestHitReceiver()
 	//Apply propagation loss
 	float2 Eih = sca_complex_prod((hitPayload.electricFieldAmplitude / unfoldedPathLength), Rzexph);
 	float2 Eiv = sca_complex_prod((hitPayload.electricFieldAmplitude / unfoldedPathLength), Rzexpv);
-
+	//rtPrintf("PL\t%u\t%u\t%u\t%u Eih=(%.6e,%.6e) Eiv=(%.6e,%.6e) k=%f upl=%f\n",receiverBufferIndex,receiverLaunchIndex.x,receiverLaunchIndex.y,hitPayload.rhfr.x,Eih.x, Eih.y,Eiv.x,Eiv.y,k,unfoldedPathLength);
 
 	//At this point we have the incident field separated in vertical and horizontal components. We decide what we want to do with it below 
 
@@ -161,6 +161,7 @@ if (computeMode==0) {
 	aHit.EEx=make_float4(E, make_float2(0.0f,0.0f));
 	aHit.EyEz=make_float4(0.0f,0.f,0.0f,0.0f);
 	aHit.doaD = make_float4(ray.x, ray.y,ray.z, unfoldedPathLength);	
+	//aHit.info.x=hitPayload.rhfr.x;
 	//printf("DH\t%u\t%u\t%u\t%u\t%f\t%f\t%f\t%u\t%u\t%u\t%d\n", receiverLaunchIndex.x, receiverLaunchIndex.y,receiverBufferIndex, hitPayload.rhfr.x,unfoldedPathLength, E.x,E.y, aHit.thrd.y,aHit.thrd.z,aHit.thrd.w,externalId);
 }	
 	//aHit.r=reflections;
@@ -176,18 +177,30 @@ if (computeMode==1) {
 	float3 xu=make_float3(1.0f,0.0f,0.0f);
 	float3 yu=make_float3(0.0f,1.0f,0.0f);
 	float3 zu=make_float3(0.0f,0.0f,1.0f);
-	const float2 Einorm=sca_complex_prod(dot(hitPayload.hor_v,xu),Eih) + sca_complex_prod(dot(hitPayload.ver_v,xu),Eiv);
-	const float2 Eipar=sca_complex_prod(dot(hitPayload.hor_v,yu),Eih) + sca_complex_prod(dot(hitPayload.ver_v,yu),Eiv);
-	const float2 Eirad=sca_complex_prod(dot(hitPayload.hor_v,zu),Eih) + sca_complex_prod(dot(hitPayload.ver_v,zu),Eiv);
-	
+	float2 Einorm=sca_complex_prod(dot(hitPayload.hor_v,xu),Eih) + sca_complex_prod(dot(hitPayload.ver_v,xu),Eiv);
+	float2 Eipar=sca_complex_prod(dot(hitPayload.hor_v,yu),Eih) + sca_complex_prod(dot(hitPayload.ver_v,yu),Eiv);
+	float2 Eirad=sca_complex_prod(dot(hitPayload.hor_v,zu),Eih) + sca_complex_prod(dot(hitPayload.ver_v,zu),Eiv);
+	const float3 ray=-ray_receiver.direction;	
+
+	if (useAntennaGain) {
+
+		float g=getAntennaGain(ray, gainBufferId,transformToPolarization);	
+		Einorm=sca_complex_prod(g,Einorm);
+		Eipar=sca_complex_prod(g,Eipar);
+		Eirad=sca_complex_prod(g,Eirad);
+		//rtPrintf("H\t%u\t%u\t%u\t%u E=(%.6e,%.6e) ray=(%f,%f,%f) g=%f\n",receiverBufferIndex,receiverLaunchIndex.x,receiverLaunchIndex.y,hitPayload.rhfr.x,Eipar.x, Eipar.y,ray.x,ray.y,ray.z,g);
+		//aHit.doaD = make_float4(ray.x, ray.y,ray.z, g);	
+	}
+
 	aHit.EEx=make_float4(make_float2(0.0f,0.0f),Einorm);
-	aHit.EyEz=make_float4(Eipar,Eirad);	
+	aHit.EyEz=make_float4(Eipar,Eirad);
+	aHit.doaD = make_float4(ray.x, ray.y,ray.z, unfoldedPathLength);	
+	//rtPrintf("H\t%u\t%u\t%u\t%u E=(%.6e,%.6e) ray=(%f,%f,%f) ul=%f\n",receiverBufferIndex,receiverLaunchIndex.x,receiverLaunchIndex.y,hitPayload.rhfr.x,Eipar.x, Eipar.y,ray.x,ray.y,ray.z,unfoldedPathLength);
 	//aHit.Ex=Einorm;
 	//aHit.Ey=Eipar;
 	//aHit.Ez=Eirad;
-//	aHit.r=reflections;
-
-
+    //DEBUG NUMBER OF REFLECTIONS
+	//aHit.info.x=hitPayload.rhfr.x;
 } 
 
 

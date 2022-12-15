@@ -38,18 +38,21 @@ void BasicTests::planeTest(int mode) {
 	//Init context before doing anything else
 	if (useDepolarization) {
 		
-		//LPFlatMeshReflectionSimulation* sim = new LPFlatMeshReflectionSimulation(sceneManager);
-		LPCurvedFlatMeshReflectionSimulation* sim = new LPCurvedFlatMeshReflectionSimulation(sceneManager);
+		LPFlatMeshReflectionSimulation* sim = new LPFlatMeshReflectionSimulation(sceneManager);
+		//LPCurvedFlatMeshReflectionSimulation* sim = new LPCurvedFlatMeshReflectionSimulation(sceneManager);
 		sceneManager->setSimulation(sim);
 	} else {
 		BasicFlatMeshReflectionSimulation* sim = new BasicFlatMeshReflectionSimulation(sceneManager);
 		sceneManager->setSimulation(sim);
 	}
+	//Generating rays on launch is usually faster, specially for RDN
+	sceneManager->enableGenerateRaysOnLaunch();	
+	
 	sceneManager->initContext(freq);
 	sceneManager->getSimulation()->setPrintHits(true);	
+ 
 	
-	
-	//Horizontal plane
+	//Alternatively set horizontal plane from mesh file
 	//std::vector<int> planeind = sceneManager->loadTrianglesFromFile("meshes/tri.txt");
 	//std::vector<float3> planever = sceneManager->loadVerticesFromFile("meshes/vert.txt");
 	////std::cout << "indices=" << planeind.size() << "vertices=" << planever.size() << std::endl;
@@ -64,7 +67,7 @@ void BasicTests::planeTest(int mode) {
 	int quadind[6] = { 0,1,2,1,0,3 };
 	optix::float3 quadh[4] = { make_float3(-0.5f,0.0f,-0.5f),make_float3(0.5f,0.f,0.5f) ,make_float3(0.5f,0.f,-0.5f) ,make_float3(-0.5f,0.0f,0.5f) };
 
-	//Scale 200x200
+	//Scale to 200x200
 	Matrix4x4 tm;
 	tm.setRow(0, make_float4(200, 0, 0, 0.f));
 	tm.setRow(1, make_float4(0, 1, 0, 0.f));
@@ -73,10 +76,10 @@ void BasicTests::planeTest(int mode) {
 
 
 	MaterialEMProperties emProp1= sceneManager->ITUparametersToMaterial(3.75f,0.0f,0.038f,0.0f);
-	//MaterialEMProperties emProp1;
-	//emProp1.dielectricConstant = make_float2(3.75f, -60.0f*sceneManager->getChannelParameters().waveLength*0.038f);
-		//There is a dependency on the frequency again, we use -15 dB per 203 mm at 5 GHz => -75 dB/m
+	//There is a dependency on the frequency again, we use -15 dB per 203 mm at 5 GHz => -75 dB/m
 	emProp1.tattenuation = make_float2(0.1f,-75.f );
+
+	//Add mesh to scenario
 	sceneManager->addStaticMesh(4, quadh, 6, quadind, tm, emProp1 );
 
 
@@ -89,21 +92,18 @@ void BasicTests::planeTest(int mode) {
 		gen->generateRandomUniformSphereOnDevice(rayD*rayD);
 		sceneManager->createRaySphereFromExternalBuffer(rayD,rayD,gen->getDevicePointer());
 	}
-//	sceneManager->createRaySphere2D(1, 1);
 
 
-	//receivers
-	optix::float3 posrx = make_float3(0.0f, 2.0f, 100.0f);
-	//optix::float3 posrx2 = make_float3(10.0f, 10.0f, 100.0f);
 
 
 	optix::float3 postx = make_float3(0.0f, 10.0f, 0.0f);
 	optix::float3 polarization = make_float3(0.0f, 1.0f, 0.0f); //Perpendicular to the floor. Assuming as in Unity that forward is z-axis and up is y-axis
 
-	sceneManager->addReceiver(1, posrx,polarization, sphereRadius, sceneManager->printPower);
+	
+	//Add directly 100 receivers to have 100 reception points. Receivers can be arbitrarily close: even if the receivers sphere overlap, the hits 
+	//are computed independently
 	int nrx=100;
 	for (int i=1;i<=nrx;++i) {
-		//sceneManager->addReceiver(i,make_float3(3.72f,2.7f-6.0f, 20.0f),polarization, sphereRadius, sceneManager->printPower);
 		//	sceneManager->addReceiver(i,make_float3(0.0,2.0f, 2),polarization, sphereRadius, sceneManager->printPower);
 			sceneManager->addReceiver(i,make_float3(0.0,2.0f, i),polarization, sphereRadius, sceneManager->printPower);
 	}
@@ -119,24 +119,13 @@ void BasicTests::planeTest(int mode) {
 
 
 
-	//postx = make_float3(0.0f, 2.0f, 35.0f);
-	//sceneManager->transmit(0, 1.0f, postx, polarization);
-	//postx = make_float3(0.0f, 2.0f, 98.0f);
-	//sceneManager->transmit(0, 1.0f, postx, polarization);
-	/*postx = make_float3(0.0f, 2.0f, 97.0f);
-	  sceneManager->transmit(0, 1.0f, postx, polarization);
 
-	  postx = make_float3(0.0f, 2.0f, 96.0f);
-	  sceneManager->transmit(0, 1.0f, postx, polarization);
+	//Make sure the id of the transmitter is not equal to the receivers.
+	//receivers with an id equal to the transmitter will not receive anything (assuming the antenna cannot transmit and receive simultaneously)
+	ResultReport* report= sceneManager->transmit(0, 1.0f, postx, polarization);
 
-	  size_t i=4;
-	  postx = make_float3(0.0f, 2.0f, 99.0f -i);
-	  sceneManager->transmit(0, 1.0f, postx, polarization);
-	  */
-//	for (size_t i = 0; i < 100; ++i)
-//	{
-//		postx.z = 99.0f - i;
-		sceneManager->transmit(0, 1.0f, postx, polarization);
+//Save results to CSV
+	report->toCSV("plane.csv");
 
 //	}
 	timer.stop();
@@ -146,7 +135,7 @@ void BasicTests::planeTest(int mode) {
 }
 
 
-//Load scenario from files (simila to what is done in veneris-omnet)
+//Load scenario from files (similar to what is done in veneris-omnet)
 void  BasicTests::loadScenario() {
 	//A few receivers
 	optix::float3 rx0 = make_float3(1547.14f, 40.69f, 620.8f);
@@ -162,15 +151,16 @@ void  BasicTests::loadScenario() {
 	float freq = 868e6f;
 	std::cout<<"Load from scenario"<<std::endl;
 	timer.start();	
-	//Init context before doing anything else
-	//sceneManager->enableGenerateRaysOnLaunch();
+	sceneManager->enableGenerateRaysOnLaunch();
 	sceneManager->setMinEpsilon(1e-2);
 	sceneManager->setUseAntennaGain(true);
 	ComputeMode mode=ComputeMode::VOLTAGE;
+
 	if (useDepolarization) {
 		LPFlatMeshReflectionSimulation* sim = new LPFlatMeshReflectionSimulation(sceneManager);
 		sceneManager->setSimulation(sim);
 		sim->setComputeMode(mode);
+		//Enable traces
 		sim->setEnableTraceLog(true);
 		//sim->setEnableSimulation(false);
 	} else {
@@ -183,7 +173,7 @@ void  BasicTests::loadScenario() {
 	sceneManager->setSimulation(simd);
 	simd->setComputeMode(mode);
 	simd->setEnableTraceLog(true);
-	simd->setEnableSimulation(false);
+	simd->setEnableSimulation(true);
 	
 	sceneManager->initContext(freq);
 //Exceptions
@@ -191,44 +181,31 @@ void  BasicTests::loadScenario() {
 
 //Load files here
 	ScenarioLoader* loader=new ScenarioLoader(sceneManager);
-        //std::string path("lora/cartagena.json");
-        //std::string path("cartagena2.json");
-        //std::string path("eldi.json");
-        std::string path("cartagena-catastro.json");
+        std::string path("meshes/eldi.json");
 	loader->loadJSONScenario(path);
-        //std::string path("meshes/cartagena");
-	//loader->loadMeshesFromFiles(path);
-	//loader->loadEdgesFromFiles(path);
 
 	optix::float3 polarization = make_float3(0.0f, 1.0f, 0.0f); //Hard
-//	optix::float3 posrx = make_float3(1547.14f, 40.69f, 620.8f);
-//	float3 posrx = make_float3(1501.6, 25.1f, 609.9f);
-	//float3 posrx=rx_e;
 	float3 posrx=rx3;
 	sceneManager->addReceiver(0, posrx,polarization, sphereRadius, sceneManager->printPower);
 	
-	//AntennaGain gains=sceneManager->loadGainsFromFileIndBPower("lora/gananciasAntena.txt");
-	//int gainId=sceneManager->registerAntennaGain(gains);
-	//sceneManager->registerReceiverGain(0,gainId);
+	AntennaGain gains=sceneManager->loadGainsFromFileIndBPower("meshes/dipole.txt");
+	int gainId=sceneManager->registerAntennaGain(gains);
+	sceneManager->registerReceiverGain(0,gainId);
 	//***Single ray transmit****
 	//float3 mRay=normalize(make_float3(-0.004128737841, -0.9902680516, 0.1391119212));
 	//sceneManager->createRaySphere2D(1,1,&mRay);
+//
+	sceneManager->createRaySphere2D(0.0f,0.1,180.0f,0.0f,0.1,360.0f);
 	
 	sceneManager->finishSceneContext();
 
-////Uncomment for flat
-//
-	sceneManager->createRaySphere2D(0.0f,0.1,180.0f,0.0f,0.1,360.0f);
-//	//float3 postx = make_float3(1501.6, 25.1f, 609.9f);
-//	//optix::float3 postx = make_float3(1547.14f, 40.69f, 620.8f);
-//	optix::float3 postx = tx_f;
 	optix::float3 postx = tx3;
 	sceneManager->transmit(1, 0.0251187f, postx, polarization);
 
 //Interchange
 //	posrx=postx;
 //	sceneManager->updateReceiver(0,posrx);
-//	postx=rx1;
+//	postx=rx3;
 //	sceneManager->transmit(1, 0.0251187f, postx, polarization);
 //
 	timer.stop();
@@ -238,9 +215,8 @@ void  BasicTests::loadScenario() {
 void  BasicTests::addCompoundDynamicMeshes() {
 	Timer timer;
 	float freq = 5.9e9f;
-	std::cout<<"Running free space test"<<std::endl;
+	std::cout<<"Running addCompoundDynamicMeshes"<<std::endl;
 	timer.start();	
-	//Init context before doing anything else
 	if (useDepolarization) {
 		LPFlatMeshReflectionSimulation* sim = new LPFlatMeshReflectionSimulation(sceneManager);
 		sceneManager->setSimulation(sim);
@@ -340,7 +316,10 @@ void BasicTests::freeSpace() {
 
 	
 	sceneManager->initContext(freq);
-	sceneManager->getSimulation()->setPrintHits(true);	
+
+	//Print detailed info about each hit
+	sceneManager->getSimulation()->setPrintHits(true);
+	
 	timer.start();
 	optix::float3 postx = make_float3(0.0f, 10.0f, 0.0f);
 	optix::float3 polarizationTx = make_float3(0.0f, 1.0f, 0.0f); //Perpendicular to the floor. Assuming as in Unity that forward is z-axis and up is y-axis
@@ -359,8 +338,6 @@ void BasicTests::freeSpace() {
 	sceneManager->transmit(0, 1.0f, postx, polarizationTx, false);
 	timer.stop();
 	std::cout<<"Time="<<timer.getTime()<<std::endl;
-	//		postx = make_float3(-18.0f, 10.0f, 50.0f);
-	//		sceneManager->transmit(0, 1.0f, postx, polarization);
 
 }
 //Two quads as walls and two overlapping receivers
@@ -1401,6 +1378,24 @@ void BasicTests::quadTest( bool print, bool subSteps) {
 //}
 //
 //
+std::vector<int> BasicTests::parseTestString(std::string test) {
+	//Parse tests
+	std::vector<int> tokens; 
+	if (test.empty()) {
+		throw opal::Exception("tunnelsBase::parseTestString(): empty test string");
+	}	
+      
+    // stringstream class check1 
+	std::stringstream check1(test); 
+      
+    std::string intermediate; 
+      
+    while(getline(check1, intermediate, '-')) 
+    { 
+        tokens.push_back(std::stoi(intermediate)); 
+    } 
+	return tokens;
+}
 
 
 

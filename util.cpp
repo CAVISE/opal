@@ -221,6 +221,9 @@ ScenarioLoader::ScenarioLoader(OpalSceneManager* m)  {
 void ScenarioLoader::loadJSONScenario(std::string path) {
 	std::cout<<"Parsing JSON file "<<path<<std::endl;
 	std::ifstream i(path);
+	if (!i)  {
+		throw  opal::Exception("Could not open JSON file");
+	}
 	json j;
 	i>>j;
 	//std::cout<<" JSON file parsed"<<std::endl;
@@ -233,6 +236,14 @@ void ScenarioLoader::loadJSONScenario(std::string path) {
             	MaterialEMProperties emProp1 =readJsonEm(m["em"]);
 	 	auto ve=m["vertices"]; 
 		v=readJsonVertices(ve);
+		std::string ct=m["name"];
+		//if (ct.find("cartagena") != std::string::npos) {
+		//	sceneManager->writeMeshToPLYFile("cartagena.ply",v,ind,tm);
+		//	std::cout<<"Writing "<<m["name"]<<std::endl;
+
+		//} else {
+		//	continue;
+		//}
 		if (m["pd1"].size()==0) {
 			if (m["faceIds"].size()==0){
 			      sceneManager->addStaticMesh(v, ind, tm, emProp1);
@@ -587,6 +598,20 @@ std::vector<std::pair<optix::int3,unsigned int> > ScenarioLoader::loadFaceIdsFro
         v.w=std::stoul(val);
         return v;
 
+    }
+    optix::float2 ScenarioLoader::readFloat2(std::string line) {
+
+        std::string delimiters("\t");
+        std::istringstream iline;
+        std::string val;
+
+        iline.str(line);
+        optix::float2 v;
+        getline(iline,val,'\t');
+        v.x=std::stof(val);
+        getline(iline,val,'\t');
+        v.y=std::stof(val);
+        return v;
     }
     optix::float3 ScenarioLoader::readFloat3(std::string line) {
 

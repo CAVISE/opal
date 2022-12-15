@@ -126,7 +126,7 @@ __forceinline__ __device__ float getAntennaGain(float3 const  ray, rtBufferId<fl
 	const uint eli=floorf(elevation/eld);
 	float g = gains[make_uint2(azi,eli)];	
 	
-	//rtPrintf("e=%f a=%f azd=%f eld=%f azi=%d eli=%d  as=%d es=%d g=%6e \n", elevation, azimuth,azd, eld,azi, eli, aa, ee,g);
+	//rtPrintf("e=%f a=%f azd=%f eld=%f azi=%d eli=%d  as=%d es=%d g=%6e \n", elevation*180.0/M_PIf, azimuth*180.0/M_PIf,azd, eld,azi, eli, aa, ee,g);
 	//return gains[make_uint2(azi,eli)];	
 	return g;
 } 

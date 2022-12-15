@@ -24,10 +24,11 @@
 #include "transmitterManager.h"
 #include "raySphere.h"
 #include <optix_world.h>
-
+#include "results.h"
 namespace opal {
 
-
+ 
+ 
 
 	class Exception : public std::exception {
 		public:
@@ -201,7 +202,8 @@ namespace opal {
 	class TransmitterManager;
 	class OpalSimulation;
 	class OpalRaySphereGenerator;
-
+	class ResultRecord;
+	class ResultReport;
 	class OpalSceneManager {
 		protected:
 			//Source directory in SDK, used by sutil to find .cu programs
@@ -307,7 +309,7 @@ namespace opal {
 			OpalSceneManager();
 			OpalSceneManager(float f,  bool useExactSpeedOfLight=true);
 			virtual ~OpalSceneManager();
-			void initContext(float f);
+			virtual void initContext(float f);
 			virtual void initMembers();
 		//State
 			ChannelParameters getChannelParameters() const;
@@ -345,7 +347,7 @@ namespace opal {
 			void addStaticMesh(OpalMesh mesh);
 			void setMeshFaceId(OpalMesh mesh, uint id);
 			OpalMesh setMeshOnDevice(int meshVertexCount, optix::float3* meshVertices,std::vector<std::pair<optix::int3, unsigned int>> &triangleIndexBuffer, optix::Program intersectionProgram, optix::Program boundingBoxProgram); 
-			MaterialEMProperties ITUparametersToMaterial(float a, float b, float c, float d);
+			MaterialEMProperties ITUparametersToMaterial(float a, float b, float c, float d, bool perfectConductor=false);
 
 			bool checkFaceIds(std::vector<std::pair<optix::int3, unsigned int>> &triangleIndexFaceBuffer, int &uniqueFaces);
 		//Moving meshes functions
@@ -391,8 +393,8 @@ namespace opal {
 		//Transmitters
 			TransmitterManager* getTransmitterManager() ;
 		//Transmit
-			void transmit(int txId, float txPower, optix::float3 origin, optix::float3 polarization, bool partial=false);
-			void groupTransmit(bool partial=false);
+			ResultReport* transmit(int txId, float txPower, optix::float3 origin, optix::float3 polarization, bool partial=false);
+			ResultReport* groupTransmit(bool partial=false);
 			
 	
 		//Finish building scene
@@ -434,7 +436,7 @@ namespace opal {
 			
 			void setBaseDir(std::string b);
 			
-			void endPartialLaunch(uint numTransmitters);
+			ResultReport* endPartialLaunch(uint numTransmitters);
 			
 			void enableExceptions();
 
@@ -465,8 +467,9 @@ namespace opal {
 			std::vector<float4>  loadPDFromFile(const char* file); 
 			std::vector<float3>  loadRaysFromFile(const char* file);
 			void writeMeshToPLYFile(std::string fileName, std::vector<optix::float3>& vertices, std::vector<int>& indices, optix::Matrix4x4& transformationMatrix); 
+			void writeMeshToCustomFile(std::string fileName, std::vector<optix::float3>& vertices, std::vector<int>& indices, optix::Matrix4x4& transformationMatrix); 
 			static void printPower(float power, int txId ); 
-			AntennaGain loadGainsFromFileIndBPower(const char* file);
+			AntennaGain loadGainsFromFileIndBPower(const char* file, bool linear=false);
 			//Sign function
 			template <typename T> int sgn(T val) {
 			    return (T(0) < val) - (val < T(0));
@@ -474,9 +477,9 @@ namespace opal {
 			float signedAngle(optix::float3 from, optix::float3 to, optix::float3 axis); 
 			bool isUsingCurvedMeshes() const;
 		//Results
-			void computeTotalReceivedPower(bool callCallback);
-			float computeReceivedPower(optix::float2 E, unsigned int index, unsigned int txIndex,  uint raysHit); 
-			void printFieldComponents(optix::float2 Ex, optix::float2 Ey, optix::float2 Ez, unsigned int index,unsigned int txIndex, uint raysHit);
+			ResultReport* generateResultReport(bool callCallback);
+			ResultRecord getResultRecord(optix::float2 E, unsigned int index, unsigned int txIndex,  uint raysHit); 
+			ResultRecord getFieldRecord(optix::float2 Ex, optix::float2 Ey, optix::float2 Ez, unsigned int index,unsigned int txIndex, uint raysHit);
 			FieldInfo* getFieldInfo() {return info;};
 			float getReceivedPower(int rxId, int txId);
 			EComponents getReceivedE(int rxId, int txId);

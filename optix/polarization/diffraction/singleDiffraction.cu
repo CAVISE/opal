@@ -65,7 +65,17 @@ __forceinline__ __device__ int sgn(T val) {
 
 __forceinline__ __device__ float signedAngle(float3 from, float3 to, float3 axis) {
 	//WARNING: assuming vectors passed are normalized
-	const float a=acosf(dot(from,to));
+	//Check. Sometimes dot is slightly higher than 1- or 1
+	float angle=dot(from,to);
+	const float EPSILON=1.0e-6f;
+	if (fabs(1.0f-angle)<EPSILON) {
+		angle=1.0;
+	} else if (fabs(-1.0f-angle)<EPSILON) {
+		angle=-1.0;
+	}
+	
+
+	const float a=acosf(angle);
 	const float s=sgn(dot(axis,cross(from, to)));
 	return (s*a);
 
@@ -248,17 +258,23 @@ __forceinline__ __device__ bool isDiffractingEdge(const float3& origin,  const E
 	//If both projections are negative, we are 'inside' the edge
 	if (proja<0 && projb<0) {
 		if ((2.0-e.pn.w)>1.0) { //(2.0-n)*PI>PI
-			//Internal angle is greater than 180  
+			//Internal angle is greater than 180 
+                        //rtPrintf("a\n"); 
 			return true;
 		} else {
+ 			//float3 txo=origin-eP;
+                        
+                        //rtPrintf("b tx-o=(%f,%f,%f) proja=%f projb=%f\n",txo.x,txo.y,txo.z,proja,projb); 
 			return false;
 		}
 	} else {
 		//The origin is on the side of the face planes that the normal is pointing at
 		if ((2.0-e.pn.w)<1.0) { //(2.0-n)*PI<PI
 			//Internal angle is less than 180 so, from our point of view (external) it is larger than 180
+                        //rtPrintf("c\n"); 
 			return true;
 		} else {
+                        //rtPrintf("oriding on side of faces\n"); 
 			return false;
 		}
 	} 
@@ -410,9 +426,11 @@ __forceinline__ __device__ optix::float2 getDiffractionAngles(const float3 v, co
 	} else {
 		spp=normalize(-s_p_u -dot(plane,-s_p_u)*plane);
 	}
+	
+		//rtPrintf("%u\t%u\t  face_0=(%f,%f,%f)  sp=(%f,%f,%f) dot=(%f)  \n",launchIndex.y,launchIndex.x,face_0.x ,face_0.y, face_0.z, sp.x,sp.y,sp.z, dot(face_0,sp));
 	float phi=signedAngle(face_0, sp,rot);
 	float phi_p=signedAngle(face_0, spp,rot);
-	//rtPrintf("%u\t%u\t phi=%f phi_p=%f rot=(%f,%f,%f) \n",launchIndex.y,launchIndex.x,(phi*180/M_PIf),(phi_p*180/M_PIf), rot.x,rot.y,rot.z);
+		//rtPrintf("%u\t%u\t phi=%f phi_p=%f rot=(%f,%f,%f) \n",launchIndex.y,launchIndex.x,(phi*180/M_PIf),(phi_p*180/M_PIf), rot.x,rot.y,rot.z);
 	//If this is negative, add 360 degrees
 	if (phi<0) {
 		phi=D_2_Pi+phi;
@@ -421,8 +439,8 @@ __forceinline__ __device__ optix::float2 getDiffractionAngles(const float3 v, co
 	if (phi_p<0) {
 		phi_p=D_2_Pi+phi_p;
 	}
-	//rtPrintf("%u\t%u\t  plane=(%f,%f,%f)  s_u=(%f,%f,%f) s_p_u=(%f,%f,%f)  \n",launchIndex.y,launchIndex.x,plane.x ,plane.y, plane.z, s_u.x,s_u.y,s_u.z, s_p_u.x,s_p_u.y,s_p_u.z);
-	//rtPrintf("%u\t%u\t  face_0=(%f,%f,%f)  sp=(%f,%f,%f) spp=(%f,%f,%f)  \n",launchIndex.y,launchIndex.x,face_0.x ,face_0.y, face_0.z, sp.x,sp.y,sp.z, spp.x,spp.y,spp.z);
+		//rtPrintf("%u\t%u\t  plane=(%f,%f,%f)  s_u=(%f,%f,%f) s_p_u=(%f,%f,%f)  \n",launchIndex.y,launchIndex.x,plane.x ,plane.y, plane.z, s_u.x,s_u.y,s_u.z, s_p_u.x,s_p_u.y,s_p_u.z);
+		//rtPrintf("%u\t%u\t  face_0=(%f,%f,%f)  sp=(%f,%f,%f) spp=(%f,%f,%f)  \n",launchIndex.y,launchIndex.x,face_0.x ,face_0.y, face_0.z, sp.x,sp.y,sp.z, spp.x,spp.y,spp.z);
 
 	return make_float2(phi, phi_p);
 
@@ -773,8 +791,8 @@ __forceinline__ __device__ float4 computeG(float  phi_plus, float phi_minus, flo
 	float g_p_m=1+cosf(phi_minus-D_2_Pi*n*N_plus_minus);//g+(phi-phi')
 	float g_m_p=1+cosf(phi_plus-D_2_Pi*n*N_minus_plus); //g-(phi+phi')
 	float g_m_m=1+cosf(phi_minus-D_2_Pi*n*N_minus_minus);//g-(phi-phi')
-	//rtPrintf("%u\t n=%f phi_plus=%f phi_minus=%f \n",launchIndex.x,n, (phi_plus*180/M_PIf),(phi_minus*180/M_PIf));
-	//rtPrintf("%u\t  N=(%f,%f,%f,%f) g=(%f,%f,%f,%f)\n",launchIndex.x,N_plus_plus,N_plus_minus,N_minus_plus,N_minus_minus,g_p_p,g_p_m,g_m_p,g_m_m);
+		//rtPrintf("%u\t n=%f phi_plus=%f phi_minus=%f \n",launchIndex.x,n, (phi_plus*180/M_PIf),(phi_minus*180/M_PIf));
+		//rtPrintf("%u\t  N=(%f,%f,%f,%f) g=(%f,%f,%f,%f)\n",launchIndex.x,N_plus_plus,N_plus_minus,N_minus_plus,N_minus_minus,g_p_p,g_p_m,g_m_p,g_m_m);
 	return make_float4(g_p_p,g_p_m,g_m_p,g_m_m);
 
 
@@ -857,46 +875,44 @@ __forceinline__ __device__ float4 computeLuebbersDiffractionCoefficient(float k,
 	float cot;
 	FT=fresnelTransition(k*L*g_p_m);
 	//float2 FT=fresnelTransition(k*L*gf.y);
-	//rtPrintf("%u\t  k=%f L=%f g=%f arg=%f phi_n=%f FT=(%6e,%6e) \n",launchIndex.x,k,L,gf.y,k*L*gf.y,(phi_n*180/M_PIf),FT.x,FT.y);
+		//rtPrintf("%u\t  k=%f L=%f g=%f arg=%f phi_n=%f FT=(%6e,%6e) \n",launchIndex.x,k,L,gf.y,k*L*gf.y,(phi_n*180/M_PIf),FT.x,FT.y);
 	//float cot=1.0f/tanf(phi_n);
 	cot=1.0f/tanf(phi_n);
 	D_ip=sca_complex_prod(cot,FT);
-	//rtPrintf("%u\t pi+phi+  cot=%f phi_n=%f FT=(%6e,%6e) D_ip(%f,%f) \n",launchIndex.x,cot,(phi_n*180/M_PIf),FT.x,FT.y, D_ip.x,D_ip.y);
+		//rtPrintf("%u\t pi+phi+  cot=%f phi_n=%f FT=(%6e,%6e) D_ip(%f,%f) \n",launchIndex.x,cot,(phi_n*180/M_PIf),FT.x,FT.y, D_ip.x,D_ip.y);
 	phi_n=(M_PIf-phi_minus)/(2*n);
 	FT=fresnelTransition(k*L*g_m_m);
 	//float2 FT=fresnelTransition(k*L*gf.w);
-	//rtPrintf("%u\t k=%f L=%f g=%f arg=%f phi_n=%f FT=(%6e,%6e) \n",launchIndex.x,k,L,gf.w,k*L*gf.w,(phi_n*180/M_PIf),FT.x,FT.y);
+		//rtPrintf("%u\t k=%f L=%f g=%f arg=%f phi_n=%f FT=(%6e,%6e) \n",launchIndex.x,k,L,gf.w,k*L*gf.w,(phi_n*180/M_PIf),FT.x,FT.y);
 	cot=1.0f/tanf(phi_n);
 	//float cot=1.0f/tanf(phi_n);
 	D_im=sca_complex_prod(cot,FT);
-	//rtPrintf("%u\t pi+phi+  cot=%f phi_n=%f FT=(%6e,%6e) D_im(%f,%f) \n",launchIndex.x,cot,(phi_n*180/M_PIf),FT.x,FT.y, D_im.x,D_im.y);
-
+		//rtPrintf("%u\t pi+phi+  cot=%f phi_n=%f FT=(%6e,%6e) D_im(%f,%f) \n",launchIndex.x,cot,(phi_n*180/M_PIf),FT.x,FT.y, D_im.x,D_im.y);
 
 	D_i=D_ip+D_im;
-	//rtPrintf("%u\t D_ip=(%6e,%6e) D_im=(%6e,%6e) D_i=(%6e,%6e)  n=%f \n",launchIndex.x,D_ip.x,D_ip.y, D_im.x,D_im.y,D_i.x,D_i.y,n);
-
+		//rtPrintf("%u\t D_ip=(%6e,%6e) D_im=(%6e,%6e) D_i=(%6e,%6e)  n=%f \n",launchIndex.x,D_ip.x,D_ip.y, D_im.x,D_im.y,D_i.x,D_i.y,n);
 	phi_n=(M_PIf+phi_plus)/(2*n);
 	FT=fresnelTransition(k*L*g_p_p);
 	//float2 FT=fresnelTransition(k*L*gf.x);
-	//rtPrintf("%u\t k=%f L=%f g=%f arg=%f phi_n=%f FT=(%6e,%6e) \n",launchIndex.x,k,L,gf.x,k*L*gf.x,phi_n,FT.x,FT.y);
+
+		//rtPrintf("%u\t k=%f L=%f g=%f arg=%f phi_n=%f FT=(%6e,%6e) \n",launchIndex.x,k,L,gf.x,k*L*gf.x,phi_n,FT.x,FT.y);
 	cot=1.0f/tanf(phi_n);
 	//float cot=1.0f/tanf(phi_n);
 	D_rp=sca_complex_prod(cot,FT);
-	//rtPrintf("%u\t pi+phi+  cot=%f phi_n=%f FT=(%6e,%6e) D_rp(%f,%f) \n",launchIndex.x,cot,(phi_n*180/M_PIf),FT.x,FT.y, D_rp.x,D_rp.y);
-
+		//rtPrintf("%u\t pi+phi+  cot=%f phi_n=%f FT=(%6e,%6e) D_rp(%f,%f) \n",launchIndex.x,cot,(phi_n*180/M_PIf),FT.x,FT.y, D_rp.x,D_rp.y);
 	phi_n=(M_PIf-phi_plus)/(2*n);
 	FT=fresnelTransition(k*L*g_m_p);
 	//float2 FT=fresnelTransition(k*L*gf.z);
-	//rtPrintf("%u\t k=%f L=%f g=%f arg=%f phi_n=%f FT=(%6e,%6e) \n",launchIndex.x,k,L,gf.z,k*L*gf.z,phi_n,FT.x,FT.y);
+		//rtPrintf("%u\t k=%f L=%f g=%f arg=%f phi_n=%f FT=(%6e,%6e) \n",launchIndex.x,k,L,gf.z,k*L*gf.z,phi_n,FT.x,FT.y);
 	//float cot=1.0f/tanf(phi_n);
 	cot=1.0f/tanf(phi_n);
-	//rtPrintf("%u\t pi-phi+  cot=%f phi_n=%f FT=(%6e,%6e) \n",launchIndex.x,cot,(phi_n*180/M_PIf),FT.x,FT.y);
+		//rtPrintf("%u\t pi-phi+  cot=%f phi_n=%f FT=(%6e,%6e) \n",launchIndex.x,cot,(phi_n*180/M_PIf),FT.x,FT.y);
 	D_rm=sca_complex_prod(cot,FT);
-	//rtPrintf("%u\t pi+phi+  cot=%f phi_n=%f FT=(%6e,%6e) D_rm(%f,%f) \n",launchIndex.x,cot,(phi_n*180/M_PIf),FT.x,FT.y, D_rm.x,D_rm.y);
+		//rtPrintf("%u\t pi+phi+  cot=%f phi_n=%f FT=(%6e,%6e) D_rm(%f,%f) \n",launchIndex.x,cot,(phi_n*180/M_PIf),FT.x,FT.y, D_rm.x,D_rm.y);
 
 	D_r=D_rp+D_rm;
 
-	//rtPrintf("%u\t D_rp=(%6e,%6e) D_rm=(%6e,%6e) D_r=(%6e,%6e)  n=%f \n",launchIndex.x,D_rp.x,D_rp.y, D_rm.x,D_rm.y,D_r.x,D_r.y,n);
+		//rtPrintf("%u\t D_rp=(%6e,%6e) D_rm=(%6e,%6e) D_r=(%6e,%6e)  n=%f \n",launchIndex.x,D_rp.x,D_rp.y, D_rm.x,D_rm.y,D_r.x,D_r.y,n);
 	//Complex constant that multiplies both terms
 	//First, declare the -exp(-j*pi/4) (complex)
 	const float2 Exp_pi=make_float2(-0.7071067811865476,0.7071067811865475); //Already multiplied by -1
@@ -921,7 +937,7 @@ __forceinline__ __device__ float4 computeLuebbersDiffractionCoefficient(float k,
 
 
 
-	//rtPrintf("%u \t EL=(%6e,%6e) D_s=(%6e,%6e) Dh=(%6e,%6e)\n",launchIndex.x,EL.x,EL.y,D_s.x,D_s.y,D_h.x,D_h.y);
+		//rtPrintf("%u \t EL=(%6e,%6e) D_s=(%6e,%6e) Dh=(%6e,%6e)\n",launchIndex.x,EL.x,EL.y,D_s.x,D_s.y,D_h.x,D_h.y);
 	//Grazing incidence
 	if ((phi_prime==0)  || abs((n*M_PIf)-phi_prime)<1e-8) {
 		D_s=make_float2(0.0f,0.0f);
@@ -946,15 +962,15 @@ __forceinline__ __device__ void computeElectricFieldAtReceiver(const float4& ang
 	//Get the electrical field vector for this ray
 	const float3 Ev=getLinearPolarizationForRaySimple(pol,txRay); //It is normalized
 
-	//rtPrintf("%u\tray=(%f,%f,%f) pol=(%f,%f,%f) Ev=(%f,%f,%f) A=%f L=%f)\n",launchIndex.y,txRay.x,txRay.y,txRay.z,pol.x,pol.y,pol.z,Ev.x,Ev.y,Ev.z,A,L);
-	//rtPrintf("%u\tray=(%f,%f,%f)  Ev=(%f,%f,%f) A=%f L=%f s=%f,s'=%f)\n",launchIndex.x,txRay.x,txRay.y,txRay.z,Ev.x,Ev.y,Ev.z,A,L,s,s_prime);
-	//rtPrintf("rt=(%f,%f,%f) pol=(%f,%f,%f) Ev2=(%f,%f,%f) Evsimple2=(%f,%f,%f)\n",rt.x,rt.y,rt.z,pol.x,pol.y,pol.z,Ev3.x,Ev3.y,Ev3.z,Ev4.x,Ev4.y,Ev4.z);
+		//rtPrintf("%u\tray=(%f,%f,%f) pol=(%f,%f,%f) Ev=(%f,%f,%f) A=%f L=%f)\n",launchIndex.y,txRay.x,txRay.y,txRay.z,pol.x,pol.y,pol.z,Ev.x,Ev.y,Ev.z,A,L);
+		//rtPrintf("%u\tray=(%f,%f,%f)  Ev=(%f,%f,%f) A=%f L=%f s=%f,s'=%f)\n",launchIndex.x,txRay.x,txRay.y,txRay.z,Ev.x,Ev.y,Ev.z,A,L,s,s_prime);
+		//rtPrintf("rt=(%f,%f,%f) pol=(%f,%f,%f) Ev2=(%f,%f,%f) Evsimple2=(%f,%f,%f)\n",rt.x,rt.y,rt.z,pol.x,pol.y,pol.z,Ev3.x,Ev3.y,Ev3.z,Ev4.x,Ev4.y,Ev4.z);
 
 	//Get the unit vector parallel to the plane of incidence
 	const float3 phi_p = n_iplane;
 	const float3 beta_p=normalize(cross(txRay,phi_p)); 
 	const float3 ss=normalize(cross(phi_p,beta_p)); 
-	//rtPrintf("%u\t beta_p=(%f,%f,%f) phi_p=(%f,%f,%f) s_p=(%f,%f,%f) \n",launchIndex.x,beta_p.x,beta_p.y,beta_p.z,phi_p.x,phi_p.y,phi_p.z,ss.x,ss.y,ss.z);
+		//rtPrintf("%u\t beta_p=(%f,%f,%f) phi_p=(%f,%f,%f) s_p=(%f,%f,%f) \n",launchIndex.x,beta_p.x,beta_p.y,beta_p.z,phi_p.x,phi_p.y,phi_p.z,ss.x,ss.y,ss.z);
 
 	//Compute incident electric field at the point of diffraction (complex)	
 	float2 z = make_float2(0.0f, -k*s_prime);
@@ -970,7 +986,7 @@ __forceinline__ __device__ void computeElectricFieldAtReceiver(const float4& ang
 	//Incident complex amplitude components
 	float2 Ei_beta_q=sca_complex_prod(Ei_beta,Ei);
 	float2 Ei_phi_q=sca_complex_prod(Ei_phi,Ei);
-	//rtPrintf("%u\t Ev=(%f,%f,%f) Ei_beta=%f Ei_phi=%f Ei_beta_q=(%f,%f) Ei_phi_q=(%f,%f) an=%f\n",launchIndex.y,Ev.x,Ev.y,Ev.z,Ei_beta,Ei_phi, Ei_beta_q.x,Ei_beta_q.y, Ei_phi_q.x,Ei_phi_q.y,(atan2(Ei_phi_q.y,Ei_phi_q.x)*180/M_PIf));
+		//rtPrintf("%u\t Ev=(%f,%f,%f) Ei_beta=%f Ei_phi=%f Ei_beta_q=(%f,%f) Ei_phi_q=(%f,%f) an=%f\n",launchIndex.y,Ev.x,Ev.y,Ev.z,Ei_beta,Ei_phi, Ei_beta_q.x,Ei_beta_q.y, Ei_phi_q.x,Ei_phi_q.y,(atan2(Ei_phi_q.y,Ei_phi_q.x)*180/M_PIf));
 
 
 	//Diffraction coefficients
@@ -1007,36 +1023,49 @@ __forceinline__ __device__ void computeElectricFieldAtReceiver(const float4& ang
 	//Complex amplitude of the diffracted E field at the receiver. Eq. [13-88] Balanis
 	float2 Er_beta=complex_prod(E_at_r,complex_prod(Ds,Ei_beta_q)); //component of the diffracted E field parallel to the plane of diffraction at the receiver
 	float2 Er_phi=complex_prod(E_at_r,complex_prod(Dh,Ei_phi_q)); //component of the diffracted E field perpendicular to the plane of diffraction at the  receiver
-	//rtPrintf("%u \t Er_beta=(%6e,%6e) |Er_beta|=%6e  Er_phi=(%6e,%6e) |Er_phi|=%6e Ds=(%6e,%6e) Dh=(%6e,%6e))\n",launchIndex.y,Er_beta.x,Er_beta.y,length(Er_beta),Er_phi.x,Er_phi.y,length(Er_phi),D.x,D.y,D.z,D.w);
+		//rtPrintf("%u \t Er_beta=(%6e,%6e) |Er_beta|=%6e  Er_phi=(%6e,%6e) |Er_phi|=%6e Ds=(%6e,%6e) Dh=(%6e,%6e))\n",launchIndex.y,Er_beta.x,Er_beta.y,length(Er_beta),Er_phi.x,Er_phi.y,length(Er_phi),D.x,D.y,D.z,D.w);
 
 
 	//float2 Ee=Er_beta+Er_phi;
 
-	//rtPrintf("%u \t Dhb=(%6e,%6e) Dh=(%6e,%6e)) angle(Vi+Vr)=%f angle(Er_phi)=%f a(E)=%f\n",launchIndex.y,Dhb.x,Dhb.y,Dh.x,Dh.y, (atan2(Vbir.y,Vbir.x)*180/M_PIf),(atan2(-Er_phi.y,-Er_phi.x)*180/M_PIf),(atan2(-Ee.y,-Ee.x)*180/M_PIf));
+		//rtPrintf("%u \t Dhb=(%6e,%6e) Dh=(%6e,%6e)) angle(Vi+Vr)=%f angle(Er_phi)=%f a(E)=%f\n",launchIndex.y,Dhb.x,Dhb.y,Dh.x,Dh.y, (atan2(Vbir.y,Vbir.x)*180/M_PIf),(atan2(-Er_phi.y,-Er_phi.x)*180/M_PIf),(atan2(-Ee.y,-Ee.x)*180/M_PIf));
 
 	//Get the unit vectors for the plane of diffraction. The above complex amplitude multiply the corresponding (beta and phi) unit vectors in the diffraction plane
 	const float3 phi_u = n_dplane; 
 	//s_unit vector is defined from DP to receiver, so we have to reverse ray here
 	const float3 beta_o_u=normalize(cross(-rxRay,phi_u)); 
 	//const float3 sss = normalize(cross(phi_u,beta_o_u));
-	//rtPrintf("%u\t beta_o_u=(%f,%f,%f) phi_u=(%f,%f,%f) s=(%f,%f,%f) \n",launchIndex.x,beta_o_u.x,beta_o_u.y,beta_o_u.z,phi_u.x,phi_u.y,phi_u.z,sss.x,sss.y,sss.z);
+		//rtPrintf("%u\t beta_o_u=(%f,%f,%f) phi_u=(%f,%f,%f) s=(%f,%f,%f) \n",launchIndex.x,beta_o_u.x,beta_o_u.y,beta_o_u.z,phi_u.x,phi_u.y,phi_u.z,sss.x,sss.y,sss.z);
 
 	//Compute FIELD
 	if (computeMode==1) {
 		float3 xu=make_float3(1.0f,0.0f,0.0f);
 		float3 yu=make_float3(0.0f,1.0f,0.0f);
 		float3 zu=make_float3(0.0f,0.0f,1.0f);
-		const float2 Ex=sca_complex_prod(dot(beta_o_u,xu),Er_beta) + sca_complex_prod(dot(phi_u,xu),Er_phi);
-		const float2 Ey=sca_complex_prod(dot(beta_o_u,yu),Er_beta) + sca_complex_prod(dot(phi_u,yu),Er_phi);
-		const float2 Ez=sca_complex_prod(dot(beta_o_u,zu),Er_beta) + sca_complex_prod(dot(phi_u,zu),Er_phi);
-		//rtPrintf("%u\t Ex=(%f,%f) |Ex|=%f Ey=(%f,%f) |Ey|=%f Ez=(%f,%f) |Ez|=%f \n",launchIndex.x,Ex.x, Ex.y,length(Ex),Ey.x,Ey.y,length(Ey),Ez.x,Ez.y,length(Ez));
-		float4 sangles=angles*57.2968f;
-		//rtPrintf("%u\t%u\t%u  sangles(beta, beta',phi, phi')=(%f,%f,%f,%f) dif=%6e \n",launchIndex.x,launchIndex.y,launchIndex.z, sangles.x,sangles.y,sangles.z,sangles.w, (sangles.x-sangles.y));
+		float2 Ex=sca_complex_prod(dot(beta_o_u,xu),Er_beta) + sca_complex_prod(dot(phi_u,xu),Er_phi);
+		float2 Ey=sca_complex_prod(dot(beta_o_u,yu),Er_beta) + sca_complex_prod(dot(phi_u,yu),Er_phi);
+		float2 Ez=sca_complex_prod(dot(beta_o_u,zu),Er_beta) + sca_complex_prod(dot(phi_u,zu),Er_phi);
+			//rtPrintf("%u\t Ex=(%f,%f) |Ex|=%f Ey=(%f,%f) |Ey|=%f Ez=(%f,%f) |Ez|=%f \n",launchIndex.x,Ex.x, Ex.y,length(Ex),Ey.x,Ey.y,length(Ey),Ez.x,Ez.y,length(Ez));
+		//float4 sangles=angles*57.2968f;
+			//rtPrintf("%u\t%u\t%u  sangles(beta, beta',phi, phi')=(%f,%f,%f,%f) dif=%6e \n",launchIndex.x,launchIndex.y,launchIndex.z, sangles.x,sangles.y,sangles.z,sangles.w, (sangles.x-sangles.y));
 		RDNHit aHit;
+		if (useAntennaGain) {
+		
+			float g=getAntennaGain(rxRay, antennaGainIdBuffer[index.y],transformToPolarizationBuffer[index.y]);	
+			Ex=sca_complex_prod(g,Ex);
+			Ey=sca_complex_prod(g,Ey);
+			Ez=sca_complex_prod(g,Ez);
+		   		//printf("H\t%u\t%u\t%u\t%u E=(%.6e,%.6e) ray=(%f,%f,%f) g=%f\n",receiverBufferIndex,receiverLaunchIndex.x,receiverLaunchIndex.y,reflections,Eipar.x, Eipar.y,ray.x,ray.y,ray.z,g);
+		}
 
 		//aHit.EEx=make_float4(0.0f,0.0f,Ex.x,Ex.y);
 		aHit.EEx=make_float4(1.0f,0.0f,Ex.x,Ex.y); //Use 1 on EEx.x as flag for real hit
 		aHit.EyEz=make_float4(Ey.x,Ey.y,Ez.x,Ez.y);
+		//Additional output
+		float unfoldedPathLength = s+s_prime;
+		aHit.doaD = make_float4(rxRay.x, rxRay.y,rxRay.z, unfoldedPathLength);
+		aHit.doDu = make_float4(txRay.x, txRay.y,txRay.z, s);
+	
 		difBuffer[index]=aHit;
 	}
 	//Compute VOLTAGE
@@ -1065,7 +1094,7 @@ __forceinline__ __device__ void computeElectricFieldAtReceiver(const float4& ang
 		//Get polarization for receiver for this ray rxRay is already in the direction receiver to DP 
 		const float3 Er_pol=getLinearPolarizationForRaySimple(pol,rxRay); //It is normalized
 
-		//rtPrintf("%u\trxRay=(%f,%f,%f) Er_pol=(%f,%f,%f) Ev=(%f,%f,%f) A=%f L=%f)\n",launchIndex.y,rxRay.x,rxRay.y,rxRay.z,Er_pol.x,Er_pol.y,Er_pol.z,Ev.x,Ev.y,Ev.z,A,L);
+			//rtPrintf("%u\t%u\t%u\trxRay=(%f,%f,%f) Er_pol=(%f,%f,%f) Ev=(%f,%f,%f) A=%f )\n",launchIndex.x, launchIndex.y,launchIndex.z,rxRay.x,rxRay.y,rxRay.z,Er_pol.x,Er_pol.y,Er_pol.z,Ev.x,Ev.y,Ev.z,A);
 
 		const float Er_beta_v=dot(beta_o_u,Er_pol); 
 		const float Er_phi_v=dot(phi_u,Er_pol); 
@@ -1078,11 +1107,12 @@ __forceinline__ __device__ void computeElectricFieldAtReceiver(const float4& ang
 			float g=getAntennaGain(rxRay, antennaGainIdBuffer[index.y],transformToPolarizationBuffer[index.y]);	
 			E=sca_complex_prod(g,E);
 		}
-
-		//rtPrintf("G\t |E|=%6e index=(%u,%u,%u) %f \n",length(E),  index.x,index.y,index.z,angles.z*57.2968f);
-
 		//float4 sangles=angles*57.2968f;
-		//rtPrintf("%u\t%u\t%u  sangles(beta, beta',phi, phi')=(%f,%f,%f,%f) L=%f dif=%6e  \n",launchIndex.x,launchIndex.y,launchIndex.z, sangles.x,sangles.y,sangles.z,sangles.w, L, (sangles.x-sangles.y));
+
+			//rtPrintf("%u\t%u\t%u  E=(%f,%f) E_b=(%f,%f) E_phi=(%f,%f) L=%f dif=%6e  \n",launchIndex.x,launchIndex.y,launchIndex.z, E.x,E.y,Er_beta.x,Er_beta.y,Er_phi.x, Er_phi.y, L, (sangles.x-sangles.y));
+			//rtPrintf("G\t |E|=%6e index=(%u,%u,%u) %f \n",length(E),  index.x,index.y,index.z,angles.z*57.2968f);
+
+			//rtPrintf("%u\t%u\t%u  sangles(beta, beta',phi, phi')=(%f,%f,%f,%f) L=%f dif=%6e  \n",launchIndex.x,launchIndex.y,launchIndex.z, sangles.x,sangles.y,sangles.z,sangles.w, L, (sangles.x-sangles.y));
 		RDNHit aHit;
 		//aHit.EEx=make_float4(E.x,E.y, 0.0f,0.0f);
 		aHit.EEx=make_float4(E.x,E.y, 1.0f,0.0f); //Use 1 on EEx.z as flag that this has been an actual hit
@@ -1090,7 +1120,7 @@ __forceinline__ __device__ void computeElectricFieldAtReceiver(const float4& ang
 		//Additional output
 		float unfoldedPathLength = s+s_prime;
 		aHit.doaD = make_float4(rxRay.x, rxRay.y,rxRay.z, unfoldedPathLength);
-		aHit.doDu = make_float4(txRay.x, txRay.y,txRay.z, -1.0);
+		aHit.doDu = make_float4(txRay.x, txRay.y,txRay.z, s);
 	
 		difBuffer[index]=aHit;
 		
@@ -1102,7 +1132,7 @@ __forceinline__ __device__ void computeElectricFieldAtReceiver(const float4& ang
 RT_PROGRAM void computeSingleDiffraction() {
 
 	//3D launch [edges,receivers,transmitters]
-	//rtPrintf("%u\t%u\t%u Launch \n",launchIndex.x,launchIndex.y,launchIndex.z);
+		//rtPrintf("%u\t%u\t%u Launch \n",launchIndex.x,launchIndex.y,launchIndex.z);
 	uint3 difBufferIndex=launchIndex;
 	//Initialize buffer to make sure it does not carry values from previous launches
 	RDNHit aHit;
@@ -1128,7 +1158,7 @@ RT_PROGRAM void computeSingleDiffraction() {
 	//Compute diffraction point (DP) between transmitter, receiver and edge
 	float3 dp; 
 	if (computeDiffractionPoint(origin,destination,e,dp)){
-		//rtPrintf("%u\t%u\t%u e=%u dp=(%f,%f,%f) \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id,dp.x,dp.y,dp.z);
+			//rtPrintf("%u\t%u\t%u e=%u dp=(%f,%f,%f) \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id,dp.x,dp.y,dp.z);
 		VisibilityPayload visibilityRayPayload;
 		visibilityRayPayload.polarization_k = tx.polarization_k; 
 		visibilityRayPayload.result.x=OPAL_DIFFRACTION_LOS;
@@ -1140,7 +1170,7 @@ RT_PROGRAM void computeSingleDiffraction() {
 		float3 txRayDirection = originToDP/dist_originToDp;
 		//optix::Ray visibilityRay(origin,txRayDirection , rayTypeIndex, 0.0f,dist_originToDp); //Visibility ray type = 1
 		optix::Ray visibilityRay(origin,txRayDirection , rayTypeIndex, min_t_epsilon,dist_originToDp-min_t_epsilon); //Visibility ray type = 1
-		//rtPrintf("%u\t%u\t%u e=%u dp=(%f,%f,%f) tx ray=(%f,%f,%f) \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, dp.x,dp.y,dp.z,visibilityRay.direction.x,visibilityRay.direction.y,visibilityRay.direction.z);
+			//rtPrintf("%u\t%u\t%u e=%u dp=(%f,%f,%f) tx ray=(%f,%f,%f) \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, dp.x,dp.y,dp.z,visibilityRay.direction.x,visibilityRay.direction.y,visibilityRay.direction.z);
 		//TODO: Only check visibility with static meshes so far. Change if we want to consider  moving meshes (such as vehicles)
 		//WARNING: ONLY THIS METHODS WORKS. ANY OF THE ONE BELOW GIVES WRONG RESULTS, IT MAY BE A OPTIX BU
 		rtTrace(root, visibilityRay, visibilityRayPayload,OPAL_STATIC_MESH_MASK,RT_RAY_FLAG_DISABLE_ANYHIT);
@@ -1149,10 +1179,10 @@ RT_PROGRAM void computeSingleDiffraction() {
 		//rtTrace(root, visibilityRay, visibilityRayPayload,RT_VISIBILITY_ALL,RT_RAY_FLAG_DISABLE_ANYHIT);
 		//rtTrace(root, visibilityRay, visibilityRayPayload);
 		if (visibilityRayPayload.result.x!=OPAL_DIFFRACTION_BLOCKED) {
-			//rtPrintf("%u\t%u\t%u e=%u dp=(%f,%f,%f) tx not blocked \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, dp.x,dp.y,dp.z);
+				//rtPrintf("%u\t%u\t%u e=%u dp=(%f,%f,%f) tx not blocked \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, dp.x,dp.y,dp.z);
 			//trace visibility from receiver to DP
 			float3 destinationToDP=dp-destination;
-			//rtPrintf("%u\t%u\t%u e=%u destinationToDP=(%f,%f,%f) tx not blocked \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, destinationToDP.x,destinationToDP.y,destinationToDP.z);
+				//rtPrintf("%u\t%u\t%u e=%u destinationToDP=(%f,%f,%f) tx not blocked \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, destinationToDP.x,destinationToDP.y,destinationToDP.z);
 			float dist_destinationToDp=length(destinationToDP);
 			visibilityRay.origin=destination;
 			visibilityRay.direction=destinationToDP/dist_destinationToDp;
@@ -1169,10 +1199,10 @@ RT_PROGRAM void computeSingleDiffraction() {
 			visibilityRayPayloadRx.result.y=1;
 			//visibilityRayPayload.result.x=OPAL_DIFFRACTION_LOS;
 			//visibilityRayPayload.result.y=1;
-			//rtPrintf("%u\t%u\t%u e=%u dp=(%f,%f,%f) rx ray=(%f,%f,%f) d=%f \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, dp.x,dp.y,dp.z,visibilityRay.direction.x,visibilityRay.direction.y,visibilityRay.direction.z, dist_destinationToDp	);
+				//rtPrintf("%u\t%u\t%u e=%u dp=(%f,%f,%f) rx ray=(%f,%f,%f) d=%f \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, dp.x,dp.y,dp.z,visibilityRay.direction.x,visibilityRay.direction.y,visibilityRay.direction.z, dist_destinationToDp	);
 			float3 rxRay=visibilityRay.direction;
-			//rtPrintf("%u\t%u\t%u e=%u rxRay=(%f,%f,%f) rx not blocked \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, rxRay.x,rxRay.y,rxRay.z);
-			//rtPrintf("%u\t%u\t%u e=%u diff sangles(beta, beta',phi, phi')=(%f,%f,%f,%f) spar(s,s')=(%f,%f) face_0=(%f,%f,%f)  \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, sangles.x,sangles.y,sangles.z,sangles.w,spar.x,spar.y, face_0.x,face_0.y,face_0.z);
+				//rtPrintf("%u\t%u\t%u e=%u rxRay=(%f,%f,%f) rx not blocked \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, rxRay.x,rxRay.y,rxRay.z);
+				//rtPrintf("%u\t%u\t%u e=%u diff sangles(beta, beta',phi, phi')=(%f,%f,%f,%f) spar(s,s')=(%f,%f) face_0=(%f,%f,%f)  \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, sangles.x,sangles.y,sangles.z,sangles.w,spar.x,spar.y, face_0.x,face_0.y,face_0.z);
 
 			rtTrace(root, visibilityRayRx, visibilityRayPayloadRx,OPAL_STATIC_MESH_MASK,RT_RAY_FLAG_DISABLE_ANYHIT);
 			//rtTrace(root, visibilityRayRx, visibilityRayPayload,RT_VISIBILITY_ALL,RT_RAY_FLAG_DISABLE_ANYHIT);
@@ -1187,16 +1217,18 @@ RT_PROGRAM void computeSingleDiffraction() {
 				float4 R_n;
 				float4 angles=getDiffractionParameters<VisibilityPayload>(visibilityRayPayload,origin, destination,e,dp,spar, n_iplane, n_dplane, R_0, R_n);
 				float4 sangles = angles*180.0f/M_PIf;
-				//rtPrintf("%u\t%u\t%u e=%u  sangles(beta, beta',phi, phi')=(%f,%f,%f,%f) spar(s,s')=(%f,%f)   \n",launchIndex.x,(launchIndex.y),launchIndex.z,e.id, sangles.x,sangles.y,sangles.z,sangles.w,spar.x, spar.y);
+				
+					//rtPrintf("%u\t%u\t%u e=%u  sangles(beta, beta',phi, phi')=(%f,%f,%f,%f) spar(s,s')=(%f,%f)   \n",launchIndex.x,(launchIndex.y),launchIndex.z,e.id, sangles.x,sangles.y,sangles.z,sangles.w,spar.x, spar.y);
 				if (angles.z>=(M_PIf*e.pn.w)) {
 					//Receiver is between face_0 and face_n (inside the edge). It cannot receive even if there is no blocking (actually blocking may not be detected by visibility)
-					//rtPrintf("%u\t%u\t%u e=%u receiver is inside the wedge  sangles(beta, beta',phi, phi')=(%f,%f,%f,%f) spar(s,s')=(%f,%f)   \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, sangles.x,sangles.y,sangles.z,sangles.w,spar.x);
+						//rtPrintf("%u\t%u\t%u e=%u receiver is inside the wedge  sangles(beta, beta',phi, phi')=(%f,%f,%f,%f) spar(s,s')=(%f,%f)   \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, sangles.x,sangles.y,sangles.z,sangles.w,spar.x);
 					return;
 				}
 				//rtPrintf("%u\t%u\t%u e=%u dp=(%f,%f,%f) rx not blocked \n",launchIndex.x,launchIndex.y,launchIndex.z,e.id, dp.x,dp.y,dp.z);
 				float gain;
 				if (useAntennaGain) {
-					//rtPrintf("tx useAntennaGain\n");
+					//Tx gain here. Rx gain in included in computeElectricFieldAtReceiver
+						//rtPrintf("tx useAntennaGain\n");
 					rtBufferId<float,2> bid=tx.gainId;
 					const Matrix<4,4> tp=tx.transformToPolarization;
 					gain=getAntennaGain(txRayDirection, bid, tp);	

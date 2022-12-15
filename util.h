@@ -31,6 +31,7 @@ const float3 HZ=make_float3(0.0f, 0.0f, 1.0f);
     			void loadEdgesFromFiles(std::string path);
 			void loadEdgeFromFile(const char* file);
 			std::vector<std::pair<optix::int3,unsigned int> > loadFaceIdsFromFile(std::ifstream& infile);
+			optix::float2 readFloat2(std::string line);
 			optix::float3 readFloat3(std::string line);
 			optix::float4 readFloat4(std::string line);
 			optix::int4 readInt4(std::string line);	

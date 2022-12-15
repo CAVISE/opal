@@ -23,7 +23,8 @@ using namespace optix;
 
 //Receiver global buffers
 //TODO: make it 2D to use multiple transmitters
-rtBuffer<RDNHit, 1> eBuffer; //Buffer to store all the hits
+rtBuffer<RDNHit, 2> eBuffer; //Buffer to store all the hits
+//rtBuffer<RDNHit, 1> eBuffer; //Buffer to store all the hits
 
 //Transmitter buffer
 rtBuffer<Transmitter, 1> txBuffer;
@@ -189,8 +190,8 @@ RT_PROGRAM void closestHitReceiverCurved()
 	}		
 
 
-	//uint2 index=make_uint2(receiverBufferIndex,txBufferIndex);
-	uint index=receiverBufferIndex;
+	uint2 index=make_uint2(receiverBufferIndex,txBufferIndex);
+	//uint index=receiverBufferIndex;
 
 
 	//Compute FIELD
@@ -208,6 +209,15 @@ RT_PROGRAM void closestHitReceiverCurved()
 		Einorm=sca_complex_prod(fr,Einorm); 
 		Eipar=sca_complex_prod(fr,Eipar); 
 		Eirad=sca_complex_prod(fr,Eirad); 
+		if (useAntennaGain) {
+			const float3 ray=-ray_receiver.direction;	
+		
+			float g=getAntennaGain(ray, gainBufferId,transformToPolarization);	
+			Einorm=sca_complex_prod(g,Einorm);
+			Eipar=sca_complex_prod(g,Eipar);
+			Eirad=sca_complex_prod(g,Eirad);
+		   //printf("H\t%u\t%u\t%u\t%u E=(%.6e,%.6e) ray=(%f,%f,%f) g=%f\n",receiverBufferIndex,receiverLaunchIndex.x,receiverLaunchIndex.y,reflections,Eipar.x, Eipar.y,ray.x,ray.y,ray.z,g);
+		}
 
 		atomicAdd(&eBuffer[index].EEx.z,Einorm.x);
 		atomicAdd(&eBuffer[index].EEx.w,Einorm.y);
@@ -251,6 +261,7 @@ RT_PROGRAM void closestHitReceiverCurved()
 		
 			float g=getAntennaGain(ray, gainBufferId,transformToPolarization);	
 			E=sca_complex_prod(g,E);
+		   //printf("H\t%u\t%u\t%u\t%u E=(%.6e,%.6e) ray=(%f,%f,%f) g=%f\n",receiverBufferIndex,receiverLaunchIndex.x,receiverLaunchIndex.y,reflections,E.x,E.y,ray.x,ray.y,ray.z,g);
 		}
 
 

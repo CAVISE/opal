@@ -93,7 +93,7 @@ namespace opal {
 		myManager->getContext()->setEntryPointCount(reflectionEntryIndex+1);
 		reflectionRayIndex= myManager->getContext()->getRayTypeCount();
 		myManager->getContext()->setRayTypeCount(reflectionRayIndex+1u);
-		std::cout<<"OpalSimulation::init() reflectionEntryIndex="<<reflectionEntryIndex<<"reflectionRayIndex="<<reflectionRayIndex<<std::endl;
+		//std::cout<<"OpalSimulation::init() reflectionEntryIndex="<<reflectionEntryIndex<<"reflectionRayIndex="<<reflectionRayIndex<<std::endl;
 		if (generateTraceLog) {
 			traceEntryIndex = reflectionEntryIndex +1;
 			traceRayIndex = reflectionRayIndex +1u;
@@ -112,8 +112,8 @@ namespace opal {
 	}
 	void OpalSimulation::checkLaunchSize(unsigned int w, unsigned int h, unsigned int d) {
 
-		if ((w*h*d) >= 4294967296) {
-			throw opal::Exception("opalSimulation::checkLaunchSize(): launch dimensions cannot exceed 2^32");
+		if ((w*h*d) >= 1073741824) {
+			throw opal::Exception("opalSimulation::checkLaunchSize(): launch dimensions cannot exceed 2^30");
 		} 
 	}
 	void OpalSimulation::checkAndSetComputeMode(unsigned int mode) {
@@ -148,7 +148,7 @@ namespace opal {
 	//void OpalSimulation::setDefaultPrograms(std::map<std::string,optix::Program>& defaultPrograms, optix::Material& defaultMeshMaterial)
 	void OpalSimulation::setDefaultPrograms()
 	{
-		std::cout<<"OpalSimulation::setDefaultPrograms() "<<std::endl;
+		LOG_S(INFO)<<"OpalSimulation::setDefaultPrograms() "<<std::endl;
 		//Create compiler options here
 		std::vector<const char *> nvccOptions;
 
@@ -190,7 +190,7 @@ namespace opal {
 
 		//defaultPrograms.insert(std::pair<std::string, optix::Program>("miss", createMissProgram()));
 		//defaultPrograms.insert(std::pair<std::string, optix::Program>("rayGeneration", createRayGenerationProgram()));
-		std::cout<<"OpalSimulation::createClosestHitPrograms() creating programs"<<std::endl;
+		LOG_S(INFO)<<"OpalSimulation::createClosestHitPrograms() creating programs"<<std::endl;
 		//std::map<std::string, optix::Program>::iterator it=defaultPrograms.begin();
 		//while (it!=defaultPrograms.end()) {
 		//	std::cout<<it->first<<std::endl;
@@ -349,6 +349,9 @@ namespace opal {
 
 		globalHitInfoBuffer = setGlobalHitInfoBuffer();
 		atomicIndexBuffer=setAtomicIndexBuffer();
+		setTraceLogBuffers();
+	}
+	void OpalSimulation::setTraceLogBuffers() {
 		//Always create these buffers, set to 1 even if log trace is not used, because otherwise the traceFunctions.h raise error due to unset buffer
 		//Create ray direction buffer. Set it to one at the moment because we do not know the number of hits: resized later
 		hitRays = myManager->getContext()->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT3, 1u);
@@ -359,7 +362,6 @@ namespace opal {
 		traceAtomicIndexBuffer = myManager->getContext()->createBuffer(RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_UNSIGNED_INT, 1u);
 		myManager->getContext()["traceAtomicIndex"]->set(traceAtomicIndexBuffer);
 	}
-
 	//TODO: change constants to parameters
 	optix::Buffer OpalSimulation::setGlobalHitInfoBuffer() {
 
@@ -372,8 +374,8 @@ namespace opal {
 		//Ignore current state and use a maximum size buffer, to be reused between launches
 		//We use a fraction of the available memory. Assuming here that all the devices have the same memory...
 		long bsize=floor(fractionMemGlobalBufferSize*bytes/(sizeof(HitInfo)*enabledDevices.size()));
-		std::cout<<"-- Creating global buffer: available "<<enabledDevices.size()<<" devices with total device memory   "<<(bytes/(1024*1024))<<" MiB. globalHitBuffer  size (MiB)="<<((bsize*sizeof(HitInfo))/(1024*1024))<<std::endl;
-		std::cout<<"-- Global buffer: size of HitInfo= "<<sizeof(HitInfo)<<". Maximum number of hits per buffer=   "<<bsize<< std::endl;
+		LOG_S(INFO)<<"-- Creating global buffer: available "<<enabledDevices.size()<<" devices with total device memory   "<<(bytes/(1024*1024))<<" MiB. globalHitBuffer  size (MiB)="<<((bsize*sizeof(HitInfo))/(1024*1024))<<std::endl;
+		LOG_S(INFO)<<"-- Global buffer: size of HitInfo= "<<sizeof(HitInfo)<<". Maximum number of hits per buffer=   "<<bsize<< std::endl;
 		if (bsize>4294967296) {
 			//TODO: What to do in this case?, we can have potentially an index greater that an int size, can we actually address that memory with []... check documentation
 			throw opal::Exception("setGlobalHitInfoBuffer(): maximum number of hits is greater than the maximum number allowed for the atomic index...");
@@ -440,6 +442,8 @@ namespace opal {
 	}
 	void OpalSimulation::updateReceiver(int id, float3 position, float3 polarization, float radius) {
 	}
+	void OpalSimulation::clearReceivers() {
+	}
 	void OpalSimulation::removeReceiver(int id) {
 	}
 	void OpalSimulation::transformEdge(Edge* e, optix::Matrix4x4 t) {
@@ -469,6 +473,8 @@ namespace opal {
 				dirs.push_back(dir);
 				//std::cout<<"Log index="<<host_hits[i].index<<std::endl;
 			}
+				//std::cout<<"nhits="<<nhits<<std::endl;
+			//executeLogRayTrace(dirs.data(), nhits,numTransmitters);
 			executeLogRayTrace(dirs.data(), hits,numTransmitters);
 			dirs.clear();
 		}
@@ -546,13 +552,13 @@ namespace opal {
 				if (raysHit!=0) {
 					//#ifdef OPAL_EXTENDED_HITINFO	
 					if (mode==ComputeMode::FIELD) {
-						computeReceivedPower(Ex,Ey,Ez,index,currentTx, raysHit); 
+						//computeReceivedPower(Ex,Ey,Ez,index,currentTx, raysHit); 
 						if (info) {	
 							info->updateField(Ex,Ey,Ez,receivers[index]->externalId,activeTransmitters[currentTx]->externalId,index,raysHit); 			
 						}
 					} else {
 						//#else
-						computeReceivedPower(E,index,currentTx, raysHit); 
+						//computeReceivedPower(E,index,currentTx, raysHit); 
 						if (info) {
 							info->updateField(E,receivers[index]->externalId,activeTransmitters[currentTx]->externalId,index,raysHit); 			
 						}
@@ -581,13 +587,13 @@ namespace opal {
 						//At least one hit, callback
 						//#ifdef OPAL_EXTENDED_HITINFO	
 						if (mode==ComputeMode::FIELD) {
-							computeReceivedPower(Ex,Ey,Ez,index,currentTx, raysHit); 
+							//computeReceivedPower(Ex,Ey,Ez,index,currentTx, raysHit); 
 							if (info) {	
 								info->updateField(Ex,Ey,Ez,receivers[index]->externalId,activeTransmitters[currentTx]->externalId,index,raysHit); 			
 							}
 							//#else
 						} else {
-							computeReceivedPower(E,index,currentTx, raysHit); 
+							//computeReceivedPower(E,index,currentTx, raysHit); 
 							if (info) {
 								info->updateField(E,receivers[index]->externalId,activeTransmitters[currentTx]->externalId,index,raysHit); 			
 							}
@@ -634,13 +640,13 @@ namespace opal {
 		if (raysHit!=0u) {
 			//#ifdef OPAL_EXTENDED_HITINFO	
 			if (mode==ComputeMode::FIELD) {
-				computeReceivedPower(Ex,Ey,Ez,index,currentTx, raysHit); 
+				//computeReceivedPower(Ex,Ey,Ez,index,currentTx, raysHit); 
 				if (info) {	
 					info->updateField(Ex,Ey,Ez,receivers[index]->externalId,activeTransmitters[currentTx]->externalId,index,raysHit); 			
 				}
 				//#else
 			} else {
-				computeReceivedPower(E,index,currentTx, raysHit); 
+				//computeReceivedPower(E,index,currentTx, raysHit); 
 				if (info) {
 					info->updateField(E,receivers[index]->externalId,activeTransmitters[currentTx]->externalId,index,raysHit); 			
 				}
@@ -650,6 +656,7 @@ namespace opal {
 
 	}
 	void  OpalSimulation::printHitInfo(HitInfo* host_hits, uint hits) {
+		std::cout<<"** Detailed hit info **"<<std::endl;
 		for (uint i=0; i<hits; i++) {
 
 			if (mode==ComputeMode::FIELD) {
@@ -664,6 +671,7 @@ namespace opal {
 			std::cout<<std::setprecision(15)<<i<<"\t dir="<<(host_hits)->rdud<<std::endl;
 			++host_hits;
 		}
+		std::cout<<"****"<<std::endl;
 	}
 	void OpalSimulation::createLogTracePrograms() {
 		std::map<std::string, optix::Program>& defaultPrograms=myManager->getDefaultPrograms();
@@ -673,7 +681,7 @@ namespace opal {
 		optix::Context context=myManager->getContext();
 		optix::Program prog = context->createProgramFromPTXString(ptxHandler->getPtxString(logDir.c_str(), "triangle.cu"), "closestHitTriangleLogTrace");
 		if (prog->get()==nullptr) {
-			std::cout<<"null program at  " <<logDir <<std::endl;
+			LOG_S(WARNING)<<"null program at  " <<logDir <<std::endl;
 
 		} else {
 			prog->validate();
@@ -681,7 +689,7 @@ namespace opal {
 		defaultPrograms.insert(std::pair<std::string, optix::Program>("closestHitTriangleLogTrace",prog) );
 		prog = context->createProgramFromPTXString(ptxHandler->getPtxString(logDir.c_str(), "curved.cu"), "closestHitCurvedLogTrace");
 		if (prog->get()==nullptr) {
-			std::cout<<"null program at  " <<logDir <<std::endl;
+			LOG_S(WARNING)<<"null program at  " <<logDir <<std::endl;
 
 		} else {
 			prog->validate();
@@ -689,7 +697,7 @@ namespace opal {
 		defaultPrograms.insert(std::pair<std::string, optix::Program>("closestHitCurvedLogTrace",prog) );
 		prog = context->createProgramFromPTXString(ptxHandler->getPtxString(logDir.c_str(), "receiver.cu"), "closestHitReceiverLogTrace");
 		if (prog->get()==nullptr) {
-			std::cout<<"null program at  " <<logDir <<std::endl;
+			LOG_S(WARNING)<<"null program at  " <<logDir <<std::endl;
 
 		} else {
 			prog->validate();
@@ -697,7 +705,7 @@ namespace opal {
 		defaultPrograms.insert(std::pair<std::string, optix::Program>("closestHitReceiverLogTrace", prog));
 		prog = context->createProgramFromPTXString(ptxHandler->getPtxString(logDir.c_str(), "receiver.cu"), "missLogTrace");
 		if (prog->get()==nullptr) {
-			std::cout<<"null program at  " <<logDir <<std::endl;
+			LOG_S(WARNING)<<"null program at  " <<logDir <<std::endl;
 
 		} else {
 			prog->validate();
@@ -705,7 +713,7 @@ namespace opal {
 		defaultPrograms.insert(std::pair<std::string, optix::Program>("missLogTrace", prog));
 		prog = context->createProgramFromPTXString(ptxHandler->getPtxString(logDir.c_str(), "generation.cu"), "genRayTracesFromHits");
 		if (prog->get()==nullptr) {
-			std::cout<<"null program at  " <<logDir <<std::endl;
+			LOG_S(WARNING)<<"null program at  " <<logDir <<std::endl;
 
 		} else {
 			prog->validate();

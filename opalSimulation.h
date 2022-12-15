@@ -87,6 +87,7 @@ namespace opal {
 			
 			virtual optix::Buffer setGlobalHitInfoBuffer();
 			virtual optix::Buffer setAtomicIndexBuffer();
+			virtual void setTraceLogBuffers();
 			optix::Buffer hitRays; // Buffer to store the rays that have hit in the launch to relaunch for log trace
 			optix::Buffer traceBuffer; // Buffer to store the trace info
 			optix::Buffer traceAtomicIndexBuffer; //Atomic index to store the hit index for traces	
@@ -129,6 +130,7 @@ namespace opal {
 			virtual void addReceiver(int id, float3  position, float3 polarization, float radius, std::function<void(float, int)>  callback, std::vector<optix::Material>& materials);
 			virtual void addStaticMesh(opal::OpalMesh& mesh, std::vector<optix::Material>& materials) ;
 			virtual void addStaticCurvedMesh(opal::OpalMesh& mesh, std::vector<optix::Material>& materials) ;
+			virtual void clearReceivers();
 			virtual void removeReceiver(int id);
 			virtual void updateReceiver(int id, float3 position, float3 polarization, float radius);
 			virtual ComputeMode getComputeMode() const { return mode;};	

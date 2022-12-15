@@ -11,6 +11,77 @@ using namespace opal;
 using namespace optix;
 //Tests. Compile as exe
 #ifdef _WIN32
+//Define wgetopt as a substitute for getopt in Windows
+
+int     opterr = 1,             /* if error message should be printed */
+optind = 1,             /* index into parent argv vector */
+optopt,                 /* character checked for validity */
+optreset;               /* reset getopt */
+char* optarg;                /* argument associated with option */
+
+#define BADCH   (int)'?'
+#define BADARG  (int)':'
+#define EMSG    ""
+
+/*
+ * getopt --
+ *      Parse argc/argv argument vector.
+ */
+int wgetopt(int nargc, char* const nargv[], const char* ostr)
+{
+	static char* place = EMSG;              /* option letter processing */
+	const char* oli;                              /* option letter list index */
+
+	if (optreset || !*place) {              /* update scanning pointer */
+		optreset = 0;
+		if (optind >= nargc || *(place = nargv[optind]) != '-') {
+			place = EMSG;
+			return (-1);
+		}
+		if (place[1] && *++place == '-') {      /* found "--" */
+			++optind;
+			place = EMSG;
+			return (-1);
+		}
+	}                                       /* option letter okay? */
+	if ((optopt = (int)*place++) == (int)':' ||
+		!(oli = strchr(ostr, optopt))) {
+		/*
+		* if the user didn't specify '-' as an option,
+		* assume it means -1.
+		*/
+		if (optopt == (int)'-')
+			return (-1);
+		if (!*place)
+			++optind;
+		if (opterr && *ostr != ':')
+			(void)printf("illegal option -- %c\n", optopt);
+		return (BADCH);
+	}
+	if (*++oli != ':') {                    /* don't need argument */
+		optarg = NULL;
+		if (!*place)
+			++optind;
+	}
+	else {                                  /* need an argument */
+		if (*place)                     /* no white space */
+			optarg = place;
+		else if (nargc <= ++optind) {   /* no arg */
+			place = EMSG;
+			if (*ostr == ':')
+				return (BADARG);
+			if (opterr)
+				(void)printf("option requires an argument -- %c\n", optopt);
+			return (BADCH);
+		}
+		else                            /* white space */
+			optarg = nargv[optind];
+		place = EMSG;
+		++optind;
+	}
+	return (optopt);                        /* dump back option letter */
+}
+
 #else 
 #include <unistd.h>
 #endif
@@ -24,11 +95,16 @@ using namespace optix;
 #include "tests/dudley.h"
 #include "tests/diffraction.h"
 #include "tests/antennaGain.h"
-
 int main(int argc, char** argv)
 {
 	try {
 
+		//Init log
+		//Remove some info from the log
+		loguru::g_preamble_date=false;
+		loguru::g_preamble_time=false;
+		loguru::g_preamble_thread=false;
+		loguru::init(argc,argv);
 		
 		std::cout << "Running Opal with:  " ;
 		for(int i = 0; i < argc; ++i) {
@@ -49,16 +125,18 @@ int main(int argc, char** argv)
 		bool useMultiGPU=true;
 		bool useFastMath=true;
 		float radius=0.04f;
-#ifdef _WIN32
-#else 
 
 		std::string usage="Usage: opal [-options] \n  -r Max reflections E \n -p Enable OptiX rtPrintf on device to debug \n -s Use decimal degrees in angular spacing \n -c Use c=3e8 m/s. Default is c=299 792 458 m/s\n -d Enable depolarization \n -a Enable penetration \n -g Disable multiGPU \n -m disable fast_math \n -h Show help \n -t string to select a particular test (dependent on the program)";
 
 		int c;
 		int nr;
 		std::string test;
+#ifdef _WIN32
+		while ((c = wgetopt (argc, argv, "r:pscdagmu:ht:")) != -1) {
+#else 
 
 		while ((c = getopt (argc, argv, "r:pscdagmu:ht:")) != -1) {
+#endif
 			switch (c) {
 				case 'r':
 					//std::cout<<optarg<<std::endl;
@@ -114,7 +192,7 @@ int main(int argc, char** argv)
 
 			}
 		}
-#endif
+//#endif
 		
 		//New way to initialize: first create instance
 		//std::unique_ptr<OpalSceneManager> sceneManager(new OpalSceneManager());
@@ -152,17 +230,19 @@ int main(int argc, char** argv)
 		
 
 		
-		//Finally, run some of the  tests below
+		//Finally, run the test
 
 
 //Basic tests
-		//BasicTests basic(sceneManager,radius,useDepolarization);
+		BasicTests basic(sceneManager,radius,useDepolarization);
 		//basic.planeTest(0);
 		//basic.freeSpace();
 		//basic.quadTest(false,false);
 		//basic.addCompoundDynamicMeshes();
 
-		//basic.loadScenario();
+		basic.loadScenario();
+
+//Curvature tests
 		//CurvatureTests ct(sceneManager, radius);
 		//ct.cylinderTest();
 		//ct.symmetricDivergenceTest();
@@ -190,6 +270,7 @@ int main(int argc, char** argv)
 		//DudleyTests dud(sceneManager,radius,useDepolarization);
 		//dud.runTest(test);		
 
+
 //Diffraction tests
 		//DiffractionTests dif(sceneManager,radius, useDepolarization);
 		//dif.semiplaneDiffraction();
@@ -200,10 +281,10 @@ int main(int argc, char** argv)
 		//dif.runCrossing();
 		//dif.addCompoundDynamicMeshes();
 //AntennaGain test
-		AntennaGainTests ag(sceneManager, radius);
-		ag.freeSpace(useDepolarization);
+		//AntennaGainTests ag(sceneManager, radius);
+		//ag.freeSpace(useDepolarization);
 		//ag.freeSpaceRDN();
-		
+
 		delete sceneManager;
 
 

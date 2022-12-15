@@ -115,9 +115,10 @@ set(OPAL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/Config.h @ONLY)
  
 
-# See top level CMakeLists.txt file for documentation of OPTIX_add_sample_executableOPTIX_add_sample_executable( tunnels 
-OPTIX_add_sample_executable( opal 
-  json.hpp
+# See top level CMakeLists.txt file for documentation of OPTIX_add_sample_executable.
+OPTIX_add_sample_executable( opal
+  results.h
+  results.cpp
   Opal.cpp
   Opal.h
   Common.h
@@ -128,6 +129,8 @@ OPTIX_add_sample_executable( opal
   Unity.h
   Unity.cpp
   main.cpp
+  loguru.hpp
+  loguru.cpp
   #traceFunctions.h
   #penetrationFunctions.h
   transmitterManager.h
@@ -144,6 +147,10 @@ OPTIX_add_sample_executable( opal
   curvedFlatMeshSimulation.cpp
   rayDensityNormalizationSimulation.h
   rayDensityNormalizationSimulation.cpp
+  ext/curvedFlatMeshSimulationDoa.h
+  ext/curvedFlatMeshSimulationDoa.cpp
+  ext/flatSimulationDoa.h
+  ext/flatSimulationDoa.cpp
   tutils.cu
   tutils.h
   timer.h
@@ -172,6 +179,7 @@ OPTIX_add_sample_executable( opal
   raySphere.cpp
   singleDiffraction.h
   singleDiffraction.cpp
+  json.hpp
   #dkm.h 
   #To see it properly in Visual Studio we should add the following. 
   optix/intersect/sphere.cu
@@ -212,7 +220,7 @@ OPTIX_add_sample_executable( opal
   optix/reflectionFunctions.h
   )
 
-target_link_libraries(opal 
+target_link_libraries( opal
      ${CUDA_LIBRARIES}
     ${CUDA_curand_LIBRARY}
   optix
@@ -221,7 +229,8 @@ target_link_libraries(opal
   #mlpack
   )
 set(sources
-  json.hpp
+  results.h
+  results.cpp
   Opal.cpp
   Opal.h
   Common.h
@@ -232,6 +241,8 @@ set(sources
   Unity.h
   Unity.cpp
   main.cpp
+  loguru.hpp
+  loguru.cpp
   #traceFunctions.h
   #penetrationFunctions.h
   transmitterManager.h
@@ -248,6 +259,10 @@ set(sources
   curvedFlatMeshSimulation.cpp
   rayDensityNormalizationSimulation.h
   rayDensityNormalizationSimulation.cpp
+  ext/curvedFlatMeshSimulationDoa.h
+  ext/curvedFlatMeshSimulationDoa.cpp
+  ext/flatSimulationDoa.h
+  ext/flatSimulationDoa.cpp
   tutils.cu
   tutils.h
   timer.h
@@ -317,16 +332,20 @@ set(sources
   optix/reflectionFunctions.h
 )
 OPTIX_add_sample_library( opal_s 
+  results.h
+  results.cpp
   Opal.cpp
   Opal.h
   Common.h
   Config.h
-  #Complex.h
   util.cpp
   util.h
+  #Complex.h
   Unity.h
   Unity.cpp
   main.cpp
+  loguru.hpp
+  loguru.cpp
   #traceFunctions.h
   #penetrationFunctions.h
   transmitterManager.h
@@ -343,6 +362,10 @@ OPTIX_add_sample_library( opal_s
   curvedFlatMeshSimulation.cpp
   rayDensityNormalizationSimulation.h
   rayDensityNormalizationSimulation.cpp
+  ext/curvedFlatMeshSimulationDoa.h
+  ext/curvedFlatMeshSimulationDoa.cpp
+  ext/flatSimulationDoa.h
+  ext/flatSimulationDoa.cpp
   tutils.cu
   tutils.h
   timer.h
@@ -420,6 +443,8 @@ target_link_libraries( opal_s
   sutil_sdk
   )
 set(sources
+  results.h
+  results.cpp
   Opal.cpp
   Opal.h
   Common.h
@@ -430,6 +455,8 @@ set(sources
   Unity.h
   Unity.cpp
   main.cpp
+  loguru.hpp
+  loguru.cpp
   #traceFunctions.h
   #penetrationFunctions.h
   transmitterManager.h
@@ -446,6 +473,10 @@ set(sources
   curvedFlatMeshSimulation.cpp
   rayDensityNormalizationSimulation.h
   rayDensityNormalizationSimulation.cpp
+  ext/curvedFlatMeshSimulationDoa.h
+  ext/curvedFlatMeshSimulationDoa.cpp
+  ext/flatSimulationDoa.h
+  ext/flatSimulationDoa.cpp
   tutils.cu
   tutils.h
   timer.h

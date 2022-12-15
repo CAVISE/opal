@@ -119,7 +119,8 @@ struct HitInfo {
 	//Additional output. TODO: to make this properly, we should extend from this struct. But then, there is a lot of code to change in tutils.cu... change to templates..
 	optix::float4 doaD; //Packed [DoA (float3), unfolded distance float]
 	
-
+	//USE EXTRA DEBUG INFORMATION
+        //optix::uint4 info;
 
 
  
@@ -276,6 +277,11 @@ template <typename SizeT>
 inline void hash_combine_impl(SizeT &seed, SizeT value) {
 	seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
+
+//Linear indexes in multidimensional buffers
+//given a buffer(width, height, depth) for a (x,y,z) the linear index i=z * height * width + y * width + x
+//given a buffer(width, height) for a (x,y) the linear index i= y * width + x
+
 
 //Typedefs for RDN particular hits
 
