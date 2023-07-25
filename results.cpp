@@ -103,7 +103,7 @@ void ResultReport::toCSV(std::string file) {
 	std::ofstream myfile;
 	myfile.open (file);
 	if (results[0].isField) {
-		myfile<<"txId,rxId,Ex.real,Ex.im,Px,Ey.real, Ey.im,Py,Ez.real,Ez.im, Pz,position.x,position.y,position.z,raysHit,radius,distance,txpos.x,txpos.y,txpos.z"<< std::endl;
+		myfile<<"txId,rxId,Ex.real,Ex.im,Px,Ey.real,Ey.im,Py,Ez.real,Ez.im,Pz,position.x,position.y,position.z,raysHit,radius,distance,txpos.x,txpos.y,txpos.z"<< std::endl;
 		for (auto r : results) {
 			 myfile<<r.txId<<","<<r.rxId<<","<<r.Ex.x<<","<<r.Ex.y<<","<<dot(r.Ex,r.Ex)<<","<<r.Ey.x<<","<<r.Ey.y<<","<<dot(r.Ey,r.Ey)<<","<<r.Ez.x<<","<<r.Ez.y<<","<<dot(r.Ez,r.Ez)<<","<<r.position.x<<","<<r.position.y<<","<<r.position.z<<","<<r.raysHit<<","<<r.radius<<","<<r.d<<","<<r.origin.x<<","<<r.origin.y<<","<<r.origin.z<< std::endl;
 	
