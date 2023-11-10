@@ -15,15 +15,16 @@ dynamical scene,
 which is built from meshes loaded from files or from another application, such 
 as a game engine.
 
-At the moment, only reflections are computed. In future releases we will add difraction.
+At the moment,  reflections and first order diffraction is computed.
 
 It supports simultaneous transmissions from multiple transmitters to multiple receivers.
 
 
-It can be used as a standalone application or as a Unity plugin. If used as
+It can be used as a standalone application, as a OMNET++ module or as a Unity plugin. If used as
 a Unity plugin, a Unity program will send the meshes and update the transforms 
 of the elements of the scene. The Unity related code can be found in 
 our   [Veneris repository](https://gitlab.com/esteban.egea/veneris).
+The OMNET++ modules can be found in our [Veneris-omnet repository](https://gitlab.com/esteban.egea/veneris-omnet).
 
 For more information visit the [Veneris project website](http://pcacribia.upct.es/veneris).
 
@@ -39,7 +40,7 @@ follow instructions to install it.
 
 **Updated to Optix 6.5**
 It has been tested with the last Optix version, 6.5, and **the performance on the same hardware has improved remarkably**, even without using RTX cores. With Optix 6.5 
- use CUDA 10.0 or 10.1 and it requires a NVIDIA driver at least R435.80 driver or newer. Follow exactly the same steps as below, but with Optix 6.0 and CUDA 10.0.
+ use CUDA 10.0, 10.1 or 10.2 and it requires a NVIDIA driver at least R435.80 driver or newer. Follow exactly the same steps as below, but with Optix 6.5 and CUDA 10.2.
 
 With Optix 5.1.
 Basically you need to install CUDA first, which for Optix 5.1 should be 9.0 
@@ -62,7 +63,7 @@ make
 In Windows:
 
 Go to SDK folder and execute cmake-gui. Configure and generate for you compiler. If you use Visual Studio, you 
-may have problems with the last versions. It has been tested with VS Entreprise 2017, version 15.4.5.
+may have problems with the last versions. It has been tested with VS Entreprise 2017, version 15.4.5 and Visual Studio Community 2019.
 Make sure that you set `CUDA_HOST_COMPILER` variable in cmake-gui, which is your host compiler, and should be something like `C:/Program Files (x86)/Microsoft Visual Studio/2017/Enterprise/VC/Tools/MSVC/14.11.25503/bin/Hostx64/x64/cl.exe`
 Then, you can compile it with VS.
 
@@ -88,7 +89,7 @@ Make sure that you do that for both Debug and Release configurations, or any oth
 
 
 ## Usage
-As a standalone application, you can find an `main` method in `tests.cpp` with some tests. You can do your own, include it in your application, and 
+As a standalone application, you can find a `main` method  with some tests. You can implement your own classes, adapt the main, include it in your application, and 
 so on. Recompile and execute. 
 
 As a library, link appropriately and go. 
@@ -105,20 +106,20 @@ With Unity, even recompiling, any  change made in the .cu files is ignored unles
 When building an executable with Unity, you have either to use a specific script to create the cudaDir and copy the .cu and .h files to it, or just create and copy manually after the build is done. In the end, along with the Unity executable and files you need to have this specific folder and files 
 
 * Take a look at the `main.cpp` and the files in the `tests` folder for examples of use. **That is the first thing you should do. There are alternative ways to set up a simulation and 
-different simulation types**.
+different simulation types**. Start by looking at the `tests/tests.cpp` file for basic usage examples.
 
 * Start by uncommenting one of the samples in `main.cpp` and try other ones by commenting and uncommenting the ones you are interested in.
 
 To run a sample, run the executable passing some parameters as
 ```bash
-./opal -r 10 -u 0.1 -c -d
+./opal -r 10 -u 0.1 -c -d -m
 ```
 The above command run the executable in `main.cpp` with 10 reflections a sphere radius of 0.1 m, using depolarization, with approximate speed of ligth and without "fast math".
 
 A brief description of the archictecture and available options is provided in our [paper](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0260060). 
 
 ### Results
-Results are displayed in the console. Lines include codes such as "TER" to facilitate `grep`. They can also be saved to a CSV file (check the code samples in `tests`). There are two main different computation modes: 
+Results are displayed in the console. Lines include codes such as "TER" to facilitate `grep`. In the latest releases they can also be saved to a CSV file (check the code samples in `tests`). There are two main different computation modes: 
 `ComputeMode::VOLTAGE`, gives the induced voltage in the receiver antenna, that is, it takes into account any polarization of the receiver. With `ComputeMode::FIELD`, you get the projection on the axis of the electric field at 
 the receiver point. That is, no receiver antenna is considered. This mode is useful to compute the electric field at any point in the space, independently of whether there is actually a receiver at that point. Depending on the 
 computation mode, the format of the results is different.
@@ -127,8 +128,9 @@ computation mode, the format of the results is different.
 * Sometimes the simulation enters in an infinite tracing loop due to precision errors in the intersections. Changing the value of the minEpsilon parameter usually solve this issue. We have added a 
 preprocessor tag in `Common.h` to use a technique for avoiding self-intersections. But this is going to introduce some small precision errors in the computed electric field, since the ray lengths are modified due to a displacement.
 If you do not need very high accuracy (which is the usual case) you can  uncomment it. Otherwise keep it, but then you have to tune minEpsilon, which is not scale-invariant. If your simulation gets stuck in a launch, try uncommenting it.  If it is no longer stuck but you need high precision, comment it again an tune minEpsilon until it is removed.
-* Avoid placing receivers so that the radius of the receiver sphere overlaps walls or other interacting elements. Depending on the particular case, the result may be incorrect. This is specially important if you use penetration. In general, if the radius do not overlap, the 
-result will be correct. 
+* Avoid placing receivers so that the radius of the receiver sphere overlaps walls or other interacting elements.  Depending on the particular case, the result may be incorrect. This is specially important if you use penetration. In general, if the radius do not overlap, the 
+result will be correct.  **Note, however, that the sphere radius of receivers can overlap arbitrarily and the results will be correct**
+That is, receivers can be very close to each other without loss of accuracy.
 * If you do not enable depolarization, the results are correct for horizontal and vertical elements (or just slightly leaning) in the scene, because we are assuming it for the polarization and reflections. In addition, we assume that transmitter and receiver have the same polarization.
 * If you enable depolarization, arbitrary LINEAR polarizations for transmitter and receiver and leaning walls and environment elements can be used.
 * Diffraction can be used together with any of the reflection methods
