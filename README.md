@@ -1,10 +1,13 @@
-Requirements:
+# Installation instructions
+
+**Requirements:**
 
 1. CUDA 10.1 
 
 To install:
-
+<code>
 sudo apt install nvidia-cuda-toolkit
+</code>
 
 To check that you install successfully, input:
 nvcc --version
